@@ -86,8 +86,8 @@ The repository contains:
 
 **Preetham H**
 
-VIT Vellore
-
 B.Tech Information Technology
 
-Cloud Computing Project – 2026
+VIT Vellore
+
+
