@@ -1,6 +1,9 @@
+# AWS Deployment Resources
+
 This folder contains AWS deployment resources.
 
-Contents:
+## Contents
+
 - CloudFormation templates
 - Lambda functions
 - AWS configuration files
