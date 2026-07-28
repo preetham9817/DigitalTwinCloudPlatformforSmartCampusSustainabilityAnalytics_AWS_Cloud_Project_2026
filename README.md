@@ -1,14 +1,16 @@
 # Digital Twin Cloud Platform for Smart Campus Sustainability Analytics
 
+A cloud-based Digital Twin platform for monitoring, analyzing, and improving sustainability across smart campus infrastructure using AWS cloud services.
+
 ---
 
-## Project Title
+# Project Title
 
 **Digital Twin Cloud Platform for Smart Campus Sustainability Analytics**
 
 ---
 
-## Team Members
+# Team Members
 
 | Name | Registration Number |
 |------|---------------------|
@@ -16,13 +18,15 @@
 
 ---
 
-## Problem Statement
+# Problem Statement
 
-University campuses generate large volumes of operational data related to energy consumption, water usage, environmental conditions, and occupancy. Existing campus management systems often monitor these resources independently, making it difficult to obtain a unified view of sustainability performance. This project proposes a cloud-based Digital Twin platform that integrates multiple campus resources into a single virtual environment, enabling centralized monitoring, predictive analytics, sustainability assessment, and informed decision-making.
+University campuses generate large volumes of operational data related to energy consumption, water usage, environmental conditions, and occupancy. Existing campus management systems often monitor these resources independently, making it difficult to obtain a unified view of sustainability performance.
+
+This project proposes a cloud-based Digital Twin platform that integrates multiple campus resources into a single virtual environment, enabling centralized monitoring, predictive analytics, sustainability assessment, and informed decision-making.
 
 ---
 
-## Objectives
+# Objectives
 
 - Develop a cloud-based Digital Twin platform for smart campus sustainability.
 - Integrate energy, water, occupancy, and environmental sensor data.
@@ -33,29 +37,38 @@ University campuses generate large volumes of operational data related to energy
 
 ---
 
-## Proposed Architecture / Framework
+# Proposed Architecture / Framework
 
-The proposed system collects real-time IoT sensor data from campus buildings using AWS IoT Core. AWS Lambda processes incoming data before storing it in Amazon RDS and Amazon S3. AWS IoT TwinMaker creates a virtual Digital Twin of campus infrastructure, while Amazon SageMaker performs predictive analytics. Amazon QuickSight visualizes sustainability metrics through dashboards. Amazon Cognito manages user authentication, AWS IAM controls secure access, Amazon SNS delivers notifications, and Amazon CloudWatch continuously monitors cloud resources.
+The proposed system collects real-time IoT sensor data from campus buildings using **AWS IoT Core**. **AWS Lambda** processes incoming data before storing it in **Amazon RDS** and **Amazon S3**.
 
-The proposed architecture diagrams are available in the **architecture/** folder.
+**AWS IoT TwinMaker** creates a virtual Digital Twin of campus infrastructure, while **Amazon SageMaker** performs predictive analytics. **Amazon QuickSight** visualizes sustainability metrics through dashboards.
+
+**Amazon Cognito** manages user authentication, **AWS IAM** provides secure access control, **Amazon SNS** delivers notifications, and **Amazon CloudWatch** monitors cloud resources.
+
+## Architecture Diagrams
+
+The architecture diagrams are available in the **architecture/** folder.
+
+- AWS Cloud Architecture
+- Complete System Architecture
 
 ---
 
-## Technology Stack
+# Technology Stack
 
-### Frontend
+## Frontend
 
 - React.js
 - HTML
 - CSS
 - JavaScript
 
-### Backend
+## Backend
 
 - Python
 - AWS Lambda
 
-### Cloud Platform
+## Cloud Platform
 
 - AWS IoT Core
 - AWS IoT TwinMaker
@@ -68,11 +81,11 @@ The proposed architecture diagrams are available in the **architecture/** folder
 - AWS IAM
 - Amazon CloudWatch
 
-### Database
+## Database
 
 - Amazon RDS (MySQL)
 
-### Tools
+## Tools
 
 - Git
 - GitHub
@@ -80,16 +93,16 @@ The proposed architecture diagrams are available in the **architecture/** folder
 
 ---
 
-## Dataset Details
+# Dataset Details
 
-### Historical Dataset
+## Historical Dataset
 
 - **Name:** ASHRAE Great Energy Predictor III
 - **Source:** Kaggle
 - **Type:** Historical Building Energy Dataset
 - **Purpose:** Historical building energy consumption analysis.
 
-### Simulated Dataset
+## Simulated Dataset
 
 - **Name:** Smart Campus IoT Sensor Dataset
 - **Source:** Simulated IoT sensor readings generated for the project.
@@ -113,21 +126,61 @@ Dataset files are available in the **dataset/** folder.
 
 ---
 
-## Repository Structure
+# Repository Structure
 
 ```text
+DigitalTwinCloudPlatformforSmartCampusSustainabilityAnalytics_AWS_Cloud_Project_2026
+│
 ├── architecture/
+│   ├── AWS_Cloud_Architecture.png
+│   ├── Complete_System_Architecture.png
+│   └── README.md
+│
 ├── aws/
+│   ├── cloudformation/
+│   ├── lambda/
+│   ├── deployment_guide.md
+│   └── README.md
+│
 ├── dataset/
+│   ├── campus_sensor_data.csv
+│   ├── dataset_description.md
+│   └── README.md
+│
 ├── docs/
+│   ├── Survey Table.pdf
+│   ├── Individual Research gap Analysis.pdf
+│   ├── Novelty Summary.pdf
+│   ├── Work_Distribution.md
+│   └── README.md
+│
 ├── images/
+│   └── README.md
+│
 ├── presentation/
+│
+├── .gitignore
 └── README.md
 ```
 
 ---
 
-## Project Documentation
+# Folder Overview
+
+| Folder | Description |
+|---------|-------------|
+| **architecture** | Contains the AWS Cloud Architecture and Complete System Architecture diagrams. |
+| **aws** | Contains AWS deployment planning, CloudFormation templates, Lambda functions, and cloud documentation. |
+| **dataset** | Contains the project datasets and dataset documentation. |
+| **docs** | Contains the literature survey, research gap analysis, novelty summary, and work distribution documents. |
+| **images** | Contains project images and screenshots. |
+| **presentation** | Contains presentation files prepared for project reviews. |
+
+---
+
+# Project Documentation
+
+The repository includes the following documentation:
 
 - Literature Survey
 - Individual Research Gap Analysis
@@ -140,21 +193,22 @@ Documentation is available in the **docs/** folder.
 
 ---
 
-## Folder Overview
-
-| Folder | Description |
-|---------|-------------|
-| architecture | Contains the AWS Cloud Architecture and Complete System Architecture diagrams. |
-| aws | Contains AWS deployment planning, CloudFormation templates, Lambda functions, and cloud documentation. |
-| dataset | Contains the project datasets and dataset documentation. |
-| docs | Contains the literature survey, research gap analysis, novelty summary, and work distribution documents. |
-| images | Contains project images, screenshots, and visual resources. |
-| presentation | Contains presentation files prepared for project reviews and demonstrations. |
-
----
-
-## Project Status
+# Project Status
 
 🟢 **Phase-I (Planning & Documentation Completed)**
 
-The repository currently contains the project planning, literature survey, research gap analysis, novelty summary, proposed architectures, dataset information, work distribution, and organized project structure. Code implementation and AWS deployment will be added in the subsequent development phases.
+The repository currently contains the project planning, literature survey, research gap analysis, novelty summary, proposed architectures, dataset information, work distribution, and organized project structure.
+
+The project is prepared for the implementation phase, where AWS services, backend development, frontend development, Digital Twin integration, predictive analytics, and dashboard visualization will be developed.
+
+---
+
+# Future Scope
+
+- Implement AWS IoT Core for real-time data ingestion.
+- Develop AWS Lambda functions for data processing.
+- Integrate Amazon RDS and Amazon S3 for storage.
+- Build the Digital Twin using AWS IoT TwinMaker.
+- Train predictive models using Amazon SageMaker.
+- Create interactive dashboards using Amazon QuickSight.
+- Deploy the complete application on AWS Cloud.
