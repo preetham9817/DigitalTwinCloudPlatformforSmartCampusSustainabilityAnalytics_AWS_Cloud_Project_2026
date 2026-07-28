@@ -4,9 +4,9 @@ This folder contains AWS CloudFormation templates used to deploy the cloud infra
 
 ## Planned Templates
 
-- network.yaml
-- storage.yaml
-- analytics.yaml
-- security.yaml
+- iot-core.yaml
+- lambda-stack.yaml
+- storage-stack.yaml
+- security-stack.yaml
 
-These templates automate the deployment of AWS resources required for the project.
+These templates automate the deployment of AWS resources required for the Digital Twin Cloud Platform for Smart Campus Sustainability Analytics.
