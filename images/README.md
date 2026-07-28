@@ -1,7 +1,5 @@
-This folder contains project images.
+# Project Images
 
-Contents:
-- Architecture diagrams
-- AWS screenshots
-- Dashboard screenshots
-- Project workflow images
+This folder is reserved for images and visual resources related to the **Digital Twin Cloud Platform for Smart Campus Sustainability Analytics**.
+
+Project images, screenshots, architecture illustrations, and implementation visuals will be added during the subsequent development phases.
