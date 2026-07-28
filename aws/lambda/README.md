@@ -1,6 +1,6 @@
 # AWS Lambda
 
-This folder contains AWS Lambda functions used in the project.
+This folder contains AWS Lambda functions planned for the Digital Twin Cloud Platform for Smart Campus Sustainability Analytics.
 
 ## Planned Functions
 
@@ -8,4 +8,4 @@ This folder contains AWS Lambda functions used in the project.
 - sustainability_score.py
 - anomaly_detector.py
 
-These Lambda functions process IoT sensor data, calculate sustainability metrics, and detect abnormal resource usage.
+These AWS Lambda functions will process IoT sensor data, calculate sustainability metrics, detect abnormal resource usage, and support real-time data processing within the Digital Twin platform.
