@@ -1,8 +1,10 @@
 # Digital Twin Cloud Platform for Smart Campus Sustainability Analytics
 
+---
+
 ## Project Title
 
-Digital Twin Cloud Platform for Smart Campus Sustainability Analytics
+**Digital Twin Cloud Platform for Smart Campus Sustainability Analytics**
 
 ---
 
@@ -35,38 +37,43 @@ University campuses generate large volumes of operational data related to energy
 
 The proposed system collects real-time IoT sensor data from campus buildings using AWS IoT Core. AWS Lambda processes incoming data before storing it in Amazon RDS and Amazon S3. AWS IoT TwinMaker creates a virtual Digital Twin of campus infrastructure, while Amazon SageMaker performs predictive analytics. Amazon QuickSight visualizes sustainability metrics through dashboards. Amazon Cognito manages user authentication, AWS IAM controls secure access, Amazon SNS delivers notifications, and Amazon CloudWatch continuously monitors cloud resources.
 
-Architecture diagrams are available in the **architecture/** folder.
+The proposed architecture diagrams are available in the **architecture/** folder.
 
 ---
 
 ## Technology Stack
 
 ### Frontend
+
 - React.js
 - HTML
 - CSS
 - JavaScript
 
 ### Backend
-- AWS Lambda
+
 - Python
+- AWS Lambda
 
 ### Cloud Platform
+
 - AWS IoT Core
 - AWS IoT TwinMaker
 - Amazon RDS
 - Amazon S3
 - Amazon SageMaker
 - Amazon QuickSight
-- Amazon SNS
 - Amazon Cognito
+- Amazon SNS
 - AWS IAM
 - Amazon CloudWatch
 
 ### Database
+
 - Amazon RDS (MySQL)
 
 ### Tools
+
 - Git
 - GitHub
 - Eraser.io
@@ -77,19 +84,20 @@ Architecture diagrams are available in the **architecture/** folder.
 
 ### Historical Dataset
 
-**Name:** ASHRAE Great Energy Predictor III
-
-**Source:** Kaggle
-
-**Purpose:** Historical building energy consumption analysis.
+- **Name:** ASHRAE Great Energy Predictor III
+- **Source:** Kaggle
+- **Type:** Historical Building Energy Dataset
+- **Purpose:** Historical building energy consumption analysis.
 
 ### Simulated Dataset
 
-**Name:** Smart Campus IoT Sensor Dataset
+- **Name:** Smart Campus IoT Sensor Dataset
+- **Source:** Simulated IoT sensor readings generated for the project.
+- **Type:** CSV
+- **Records:** 100
+- **Features:** 9
 
-**Source:** Simulated sensor readings generated for the project.
-
-**Features**
+### Dataset Features
 
 - Timestamp
 - Building ID
@@ -107,14 +115,14 @@ Dataset files are available in the **dataset/** folder.
 
 ## Repository Structure
 
-```
+```text
 ├── architecture/
 ├── aws/
 ├── dataset/
 ├── docs/
 ├── images/
 ├── presentation/
-├── README.md
+└── README.md
 ```
 
 ---
@@ -122,18 +130,31 @@ Dataset files are available in the **dataset/** folder.
 ## Project Documentation
 
 - Literature Survey
-- Research Gap Analysis
+- Individual Research Gap Analysis
 - Novelty Summary
 - Work Distribution
-- Architecture Diagrams
+- AWS Cloud Architecture
+- Complete System Architecture
 
-Available in the **docs/** folder.
+Documentation is available in the **docs/** folder.
+
+---
+
+## Folder Overview
+
+| Folder | Description |
+|---------|-------------|
+| architecture | Contains the AWS Cloud Architecture and Complete System Architecture diagrams. |
+| aws | Contains AWS deployment planning, CloudFormation templates, Lambda functions, and cloud documentation. |
+| dataset | Contains the project datasets and dataset documentation. |
+| docs | Contains the literature survey, research gap analysis, novelty summary, and work distribution documents. |
+| images | Contains project images, screenshots, and visual resources. |
+| presentation | Contains presentation files prepared for project reviews and demonstrations. |
 
 ---
 
 ## Project Status
 
-🟢 Phase-I (Planning & Documentation Completed)
+🟢 **Phase-I (Planning & Documentation Completed)**
 
-Current repository includes project planning, documentation, architecture design, dataset information, and folder organization. Code implementation will be added in future development phases.
-
+The repository currently contains the project planning, literature survey, research gap analysis, novelty summary, proposed architectures, dataset information, work distribution, and organized project structure. Code implementation and AWS deployment will be added in the subsequent development phases.
