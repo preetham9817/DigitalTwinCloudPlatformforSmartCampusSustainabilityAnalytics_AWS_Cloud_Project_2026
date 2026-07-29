@@ -1,6 +1,6 @@
-# Dataset
+# Dataset Repository
 
-This folder contains the simulated IoT sensor datasets used in the **Digital Twin Cloud Platform for Smart Campus Sustainability Analytics** project.
+This folder contains the simulated IoT sensor datasets used in the Digital Twin Cloud Platform for Smart Campus Sustainability Analytics project. These datasets represent different campus buildings and are used for Digital Twin visualization, sustainability monitoring, comparative analysis, and predictive analytics.
 
 ## Files
 
