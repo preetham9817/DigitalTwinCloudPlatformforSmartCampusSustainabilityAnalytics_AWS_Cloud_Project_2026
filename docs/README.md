@@ -5,5 +5,6 @@ This directory contains supporting documentation for the **Digital Twin Cloud Pl
 ## Contents
 
 - Work Distribution
+- Review-1 Report
 
-Additional project documents, implementation reports, technical documentation, and user guides will be added in future development phases.
+These documents include project planning, work distribution, technical documentation, implementation planning, and reports prepared for academic evaluation.
