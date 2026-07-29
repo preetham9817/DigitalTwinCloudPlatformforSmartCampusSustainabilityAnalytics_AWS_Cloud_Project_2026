@@ -10,7 +10,7 @@ A cloud-based Digital Twin platform for monitoring, analyzing, and improving sus
 
 ---
 
-# Team Members
+# Team Member
 
 | Name | Register Number |
 |------|-----------------|
