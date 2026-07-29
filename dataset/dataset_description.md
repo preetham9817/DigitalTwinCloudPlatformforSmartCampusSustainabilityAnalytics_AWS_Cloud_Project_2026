@@ -1,18 +1,42 @@
 # Dataset Description
 
-## Dataset Name
+## Overview
 
-**Smart Campus IoT Sensor Dataset**
-
----
-
-## Description
-
-This dataset contains simulated IoT sensor readings representing real-time campus resource utilization. It is designed for the **Digital Twin Cloud Platform for Smart Campus Sustainability Analytics**.
+The **Digital Twin Cloud Platform for Smart Campus Sustainability Analytics** project uses four simulated IoT sensor datasets representing different types of campus buildings. These datasets are designed to simulate real-time resource consumption and environmental conditions, enabling sustainability monitoring, Digital Twin visualization, comparative analysis, and predictive analytics using AWS cloud services.
 
 ---
 
-## Dataset Attributes
+## Datasets Included
+
+### 1. Academic Building IoT Sensor Dataset
+**File Name:** `academic_building_sensor_data.xlsx`
+
+This dataset contains simulated IoT sensor readings collected from academic buildings such as classrooms, laboratories, libraries, and administrative offices.
+
+---
+
+### 2. Hostel Building IoT Sensor Dataset
+**File Name:** `hostel_building_sensor_data.xlsx`
+
+This dataset contains simulated IoT sensor readings collected from hostel buildings, representing residential energy consumption, water usage, occupancy patterns, and environmental conditions.
+
+---
+
+### 3. Main Building IoT Sensor Dataset
+**File Name:** `main_building_sensor_data.xlsx`
+
+This dataset contains simulated IoT sensor readings collected from the campus main building, including administrative offices and common service areas.
+
+---
+
+### 4. Placement Building IoT Sensor Dataset
+**File Name:** `placement_building_sensor_data.xlsx`
+
+This dataset contains simulated IoT sensor readings collected from the campus placement and training building, representing resource utilization during placement drives, training sessions, workshops, and student activities.
+
+---
+
+## Common Dataset Attributes
 
 - Timestamp
 - Building ID
@@ -26,35 +50,45 @@ This dataset contains simulated IoT sensor readings representing real-time campu
 
 ---
 
-## Purpose
+## File Information
 
-The dataset is used to simulate real-time campus monitoring, sustainability analysis, predictive analytics, and Digital Twin visualization using AWS cloud services.
+**File Format:** Microsoft Excel (.xlsx)
 
-### Applications
+**Number of Datasets:** 4
 
-- Digital Twin Visualization
-- Sustainability Analytics
-- Resource Optimization
-- Predictive Analysis
-- Dashboard Generation
+**Records per Dataset:** 100
+
+**Total Records:** 400
+
+**Number of Features:** 9
 
 ---
 
-## File Information
+## Purpose
 
-- **File Format:** CSV
-- **Number of Records:** 100
+The datasets are used to:
+
+- Monitor energy and water consumption across campus buildings.
+- Analyze environmental conditions and occupancy patterns.
+- Evaluate sustainability performance.
+- Visualize campus infrastructure using Digital Twin technology.
+- Compare resource utilization between different building types.
+- Support predictive analytics and intelligent decision-making using AWS cloud services.
+
+---
+
+## Applications
+
+- Digital Twin Visualization
+- Smart Campus Monitoring
+- Sustainability Analytics
+- Resource Optimization
+- Predictive Analytics
+- Dashboard Generation
+- Comparative Building Performance Analysis
 
 ---
 
 ## Status
 
-This is a simulated dataset created for the **Phase-I design and development** of the project.
-
-## Purpose
-
-- Digital Twin Visualization
-- Sustainability Analytics
-- Resource Optimization
-- Predictive Analysis
-- Dashboard Generation
+These are simulated datasets developed for the Phase-I design, analysis, and implementation planning of the **Digital Twin Cloud Platform for Smart Campus Sustainability Analytics** project.
