@@ -12,7 +12,7 @@ A cloud-based Digital Twin platform for monitoring, analyzing, and improving sus
 
 # Team Members
 
-| Name | Registration Number |
+| Name | Register Number |
 |------|----------------------|
 | Preetham H | 24BIT0294 |
 
