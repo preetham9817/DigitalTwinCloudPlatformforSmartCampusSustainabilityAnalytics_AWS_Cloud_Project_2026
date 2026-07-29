@@ -158,6 +158,7 @@ DigitalTwinCloudPlatformforSmartCampusSustainabilityAnalytics_AWS_Cloud_Project_
 │   └── README.md
 │
 ├── docs/
+│   ├── Phase_I_Review_Report.pdf
 │   ├── Work_Distribution.md
 │   └── README.md
 │
@@ -203,7 +204,7 @@ DigitalTwinCloudPlatformforSmartCampusSustainabilityAnalytics_AWS_Cloud_Project_
 | **aws** | Contains AWS deployment planning, CloudFormation templates, Lambda functions, and cloud documentation. |
 | **database** | Contains Amazon RDS database planning and documentation. |
 | **dataset** | Contains simulated IoT sensor datasets and dataset documentation. |
-| **docs** | Contains supporting project documentation such as work distribution and future technical documents. |
+| **docs** | Contains the Review-1 Report, Work Distribution, and supporting project documentation. |
 | **images** | Contains project images, screenshots, and visual assets. |
 | **literature_survey** | Contains the survey table, individual research gap analysis, and novelty summary documents. |
 | **presentation** | Contains project presentations and demonstration slides. |
@@ -217,6 +218,7 @@ DigitalTwinCloudPlatformforSmartCampusSustainabilityAnalytics_AWS_Cloud_Project_
 
 The repository includes the following documentation:
 
+- Phase-I Review Report
 - Survey Table
 - Individual Research Gap Analysis
 - Novelty Summary
@@ -226,7 +228,7 @@ The repository includes the following documentation:
 - Complete System Architecture
 - Dataset Documentation
 
-Documentation is organized across the **literature_survey**, **references**, **architecture**, **dataset**, and **docs** directories.
+Documentation is organized across the docs, literature_survey, references, architecture, and dataset directories.
 
 ---
 
@@ -236,6 +238,7 @@ Documentation is organized across the **literature_survey**, **references**, **a
 
 The repository currently contains:
 
+- Review-1 Report
 - Survey Table
 - Individual Research Gap Analysis
 - Novelty Summary
@@ -246,8 +249,6 @@ The repository currently contains:
 - Dataset documentation
 - Work Distribution
 - Organized project repository structure
-
-The project is prepared for the implementation phase, where AWS services, backend development, frontend development, Digital Twin integration, predictive analytics, machine learning models, and dashboard visualization will be developed.
 
 ---
 
