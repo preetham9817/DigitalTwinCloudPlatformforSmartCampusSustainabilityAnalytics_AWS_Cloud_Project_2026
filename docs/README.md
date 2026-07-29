@@ -1,5 +1,9 @@
 # Project Documentation
 
-This directory is reserved for project documentation related to the **Digital Twin Cloud Platform for Smart Campus Sustainability Analytics**.
+This directory contains supporting documentation for the **Digital Twin Cloud Platform for Smart Campus Sustainability Analytics** project.
 
-Project documents will be added during future development phases, including technical documentation, implementation reports, user guides, and other supporting materials.
+## Contents
+
+- Work Distribution
+
+Additional project documents, implementation reports, technical documentation, and user guides will be added in future development phases.
