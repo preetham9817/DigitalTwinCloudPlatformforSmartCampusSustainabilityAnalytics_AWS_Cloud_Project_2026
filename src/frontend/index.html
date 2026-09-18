@@ -9,9 +9,7 @@
         content="width=device-width, initial-scale=1.0"
     >
 
-    <title>
-        Digital Twin Campus
-    </title>
+    <title>Digital Twin Campus</title>
 
     <link
         rel="stylesheet"
@@ -25,9 +23,7 @@
 
 <body>
 
-    <!-- =====================================================
-         HEADER
-    ====================================================== -->
+    <!-- HEADER -->
 
     <header class="topbar">
 
@@ -51,7 +47,6 @@
 
         </div>
 
-
         <div class="system-status">
 
             <span class="status-dot"></span>
@@ -65,15 +60,12 @@
     </header>
 
 
-    <!-- =====================================================
-         MAIN DASHBOARD
-    ====================================================== -->
+    <!-- MAIN DASHBOARD -->
 
     <main class="dashboard">
 
-        <!-- =================================================
-             INTRO
-        ================================================== -->
+
+        <!-- INTRO -->
 
         <section class="dashboard-intro">
 
@@ -107,11 +99,10 @@
         </section>
 
 
-        <!-- =================================================
-             KPI CARDS
-        ================================================== -->
+        <!-- KPI CARDS -->
 
         <section class="kpi-grid">
+
 
             <div class="kpi-card">
 
@@ -127,6 +118,7 @@
 
                 </div>
 
+
                 <div class="kpi-value">
 
                     <span id="energy">
@@ -138,6 +130,7 @@
                     </small>
 
                 </div>
+
 
                 <p>
                     Campus average
@@ -160,6 +153,7 @@
 
                 </div>
 
+
                 <div class="kpi-value">
 
                     <span id="water">
@@ -171,6 +165,7 @@
                     </small>
 
                 </div>
+
 
                 <p>
                     Campus average
@@ -193,6 +188,7 @@
 
                 </div>
 
+
                 <div class="kpi-value">
 
                     <span id="occupancy">
@@ -204,6 +200,7 @@
                     </small>
 
                 </div>
+
 
                 <p>
                     Average occupancy
@@ -226,6 +223,7 @@
 
                 </div>
 
+
                 <div class="kpi-value">
 
                     <span id="sustainability">
@@ -238,25 +236,23 @@
 
                 </div>
 
+
                 <p>
                     Average sustainability score
                 </p>
 
             </div>
 
+
         </section>
 
 
-        <!-- =================================================
-             ANALYTICS GRID
-        ================================================== -->
+        <!-- RESOURCE + BUILDING ANALYTICS -->
 
         <section class="analytics-grid">
 
 
-            <!-- =============================================
-                 ENERGY CHART
-            ============================================== -->
+            <!-- ENERGY CHART -->
 
             <div class="panel chart-panel">
 
@@ -274,13 +270,20 @@
 
                     </div>
 
+
                     <span class="panel-badge">
                         Historical
                     </span>
 
                 </div>
 
-                <div class="chart-container">
+
+                <!-- IMPORTANT: SCROLLABLE CHART -->
+
+                <div
+                    class="energy-chart-wrapper"
+                    id="energyChartWrapper"
+                >
 
                     <canvas
                         id="energyChart"
@@ -291,9 +294,7 @@
             </div>
 
 
-            <!-- =============================================
-                 BUILDING SUSTAINABILITY
-            ============================================== -->
+            <!-- BUILDING ANALYTICS -->
 
             <div class="panel">
 
@@ -327,12 +328,11 @@
 
             </div>
 
+
         </section>
 
 
-        <!-- =================================================
-             ENVIRONMENT PANEL
-        ================================================== -->
+        <!-- ENVIRONMENT -->
 
         <section class="panel environment-panel">
 
@@ -423,14 +423,175 @@
 
                 </div>
 
+
             </div>
 
         </section>
 
 
-        <!-- =================================================
-             PREDICTIVE ANALYSIS
-        ================================================== -->
+        <!-- DIGITAL TWIN -->
+
+        <section class="panel digital-twin-panel">
+
+
+            <div class="panel-header">
+
+                <div>
+
+                    <span class="section-label">
+                        DIGITAL TWIN
+                    </span>
+
+                    <h3>
+                        Campus Digital Twin
+                    </h3>
+
+                    <p class="panel-description">
+                        Interactive building-level view of campus
+                        sustainability performance and resource conditions.
+                    </p>
+
+                </div>
+
+
+                <span class="panel-badge">
+                    Interactive
+                </span>
+
+            </div>
+
+
+            <!-- BUILDINGS -->
+
+            <div class="digital-twin-campus">
+
+
+                <button
+                    type="button"
+                    class="twin-building twin-academic"
+                    data-building="Academic"
+                    onclick="selectTwinBuilding('Academic')"
+                >
+
+                    <span class="twin-building-icon">
+                        🏢
+                    </span>
+
+                    <span class="twin-building-name">
+                        Academic
+                    </span>
+
+                    <strong id="twinScoreAcademic">
+                        --
+                    </strong>
+
+                </button>
+
+
+                <button
+                    type="button"
+                    class="twin-building twin-main"
+                    data-building="Main"
+                    onclick="selectTwinBuilding('Main')"
+                >
+
+                    <span class="twin-building-icon">
+                        🏢
+                    </span>
+
+                    <span class="twin-building-name">
+                        Main
+                    </span>
+
+                    <strong id="twinScoreMain">
+                        --
+                    </strong>
+
+                </button>
+
+
+                <button
+                    type="button"
+                    class="twin-building twin-hostel"
+                    data-building="Hostel"
+                    onclick="selectTwinBuilding('Hostel')"
+                >
+
+                    <span class="twin-building-icon">
+                        🏢
+                    </span>
+
+                    <span class="twin-building-name">
+                        Hostel
+                    </span>
+
+                    <strong id="twinScoreHostel">
+                        --
+                    </strong>
+
+                </button>
+
+
+                <button
+                    type="button"
+                    class="twin-building twin-placement"
+                    data-building="Placement"
+                    onclick="selectTwinBuilding('Placement')"
+                >
+
+                    <span class="twin-building-icon">
+                        🏢
+                    </span>
+
+                    <span class="twin-building-name">
+                        Placement
+                    </span>
+
+                    <strong id="twinScorePlacement">
+                        --
+                    </strong>
+
+                </button>
+
+
+            </div>
+
+
+            <!-- SELECTED BUILDING -->
+
+            <div
+                id="twinBuildingDetails"
+                class="twin-building-details"
+            >
+
+                <div class="twin-empty-state">
+
+                    <span class="twin-empty-icon">
+                        ⌖
+                    </span>
+
+                    <div>
+
+                        <strong>
+                            Select a building
+                        </strong>
+
+                        <p>
+                            Click a building above to view its
+                            sustainability and environmental metrics.
+                        </p>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+
+        </section>
+
+
+        <!-- PREDICTIVE ANALYSIS -->
 
         <section class="predictive-section">
 
@@ -467,9 +628,7 @@
             </div>
 
 
-            <!-- =============================================
-                 ATTENTION AREAS
-            ============================================== -->
+            <!-- ATTENTION AREAS -->
 
             <div class="panel">
 
@@ -486,6 +645,7 @@
                         </h3>
 
                     </div>
+
 
                     <span class="panel-badge">
                         Automatic
@@ -508,16 +668,12 @@
             </div>
 
 
-            <!-- =============================================
-                 PREDICTIVE GRID
-            ============================================== -->
+            <!-- BUILDING + TRENDS -->
 
             <div class="predictive-grid">
 
 
-                <!-- =========================================
-                     BUILDING ANALYSIS
-                ========================================== -->
+                <!-- BUILDING PERFORMANCE -->
 
                 <div class="panel">
 
@@ -552,9 +708,7 @@
                 </div>
 
 
-                <!-- =========================================
-                     TREND ANALYSIS
-                ========================================== -->
+                <!-- TREND ANALYSIS -->
 
                 <div class="panel">
 
@@ -588,12 +742,11 @@
 
                 </div>
 
+
             </div>
 
 
-            <!-- =============================================
-                 FEATURE IMPORTANCE
-            ============================================== -->
+            <!-- FEATURE IMPORTANCE -->
 
             <div class="panel">
 
@@ -633,9 +786,7 @@
             </div>
 
 
-            <!-- =============================================
-                 IMPROVEMENT AREAS
-            ============================================== -->
+            <!-- IMPROVEMENT AREAS -->
 
             <div class="panel improvement-panel">
 
@@ -675,9 +826,7 @@
             </div>
 
 
-            <!-- =============================================
-                 BUILDING RECOMMENDATIONS
-            ============================================== -->
+            <!-- BUILDING RECOMMENDATIONS -->
 
             <div class="panel">
 
@@ -715,11 +864,10 @@
         </section>
 
 
-        <!-- =================================================
-             INDIVIDUAL ML PREDICTION
-        ================================================== -->
+        <!-- ML PREDICTION -->
 
         <section class="panel prediction-panel">
+
 
             <div class="panel-header">
 
@@ -842,6 +990,7 @@
 
                 </div>
 
+
             </div>
 
 
@@ -864,41 +1013,33 @@
 
             </div>
 
+
         </section>
 
 
     </main>
 
 
-    <!-- =====================================================
-         FOOTER
-    ====================================================== -->
+    <!-- FOOTER -->
 
     <footer class="footer">
 
         <div>
-
             Digital Twin Cloud Platform for
             Smart Campus Sustainability Analytics
-
         </div>
 
         <div>
-
             AWS Cloud • Machine Learning • Digital Twin
-
         </div>
 
     </footer>
 
 
-    <!-- =====================================================
-         JAVASCRIPT
-    ====================================================== -->
-
     <script
         src="script.js"
     ></script>
+
 
 </body>
 

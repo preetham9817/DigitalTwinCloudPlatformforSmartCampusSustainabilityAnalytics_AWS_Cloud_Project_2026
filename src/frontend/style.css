@@ -35,6 +35,10 @@
 }
 
 
+/* ============================================================
+   RESET
+============================================================ */
+
 * {
 
     margin: 0;
@@ -462,6 +466,8 @@ body {
     box-shadow:
         var(--shadow);
 
+    min-width: 0;
+
 }
 
 
@@ -520,6 +526,8 @@ body {
 
     font-size: 10px;
 
+    white-space: nowrap;
+
 }
 
 
@@ -532,20 +540,142 @@ body {
     display: grid;
 
     grid-template-columns:
-        1.5fr 1fr;
+        minmax(0, 1.5fr)
+        minmax(0, 1fr);
 
     gap: 16px;
 
     margin-bottom: 16px;
 
+    width: 100%;
+
+    min-width: 0;
+
 }
 
 
+.analytics-grid > .panel {
+
+    min-width: 0;
+
+}
+
+
+/* ============================================================
+   ENERGY CHART
+============================================================ */
+
+.chart-panel {
+
+    min-width: 0;
+
+    overflow: hidden;
+
+}
+
+
+/*
+    This is the important part.
+
+    The wrapper scrolls horizontally.
+    The canvas is allowed to become wider
+    than the visible panel.
+*/
+
+.energy-chart-wrapper {
+
+    width: 100%;
+
+    height: 350px;
+
+    position: relative;
+
+    overflow-x: auto;
+
+    overflow-y: hidden;
+
+    min-width: 0;
+
+    padding-bottom: 8px;
+
+    scrollbar-width: thin;
+
+    scrollbar-color:
+        #315f99
+        #101c2e;
+
+}
+
+
+/* Chrome / Edge scrollbar */
+
+.energy-chart-wrapper::-webkit-scrollbar {
+
+    height: 9px;
+
+}
+
+
+.energy-chart-wrapper::-webkit-scrollbar-track {
+
+    background:
+        #101c2e;
+
+    border-radius:
+        10px;
+
+}
+
+
+.energy-chart-wrapper::-webkit-scrollbar-thumb {
+
+    background:
+        #315f99;
+
+    border-radius:
+        10px;
+
+}
+
+
+.energy-chart-wrapper::-webkit-scrollbar-thumb:hover {
+
+    background:
+        #4f9cff;
+
+}
+
+
+/*
+    DO NOT put width: 100% here.
+
+    JavaScript gives the canvas a larger
+    width based on the number of dates.
+*/
+
+.energy-chart-wrapper canvas {
+
+    display: block;
+
+    max-width: none;
+
+}
+
+
+/* ============================================================
+   OLD CHART CONTAINER
+   Kept for compatibility with any other chart
+============================================================ */
+
 .chart-container {
+
+    width: 100%;
 
     height: 285px;
 
     position: relative;
+
+    min-width: 0;
 
 }
 
@@ -700,6 +830,527 @@ body {
         var(--muted);
 
     font-size: 10px;
+
+}
+
+
+/* ============================================================
+   DIGITAL TWIN
+============================================================ */
+
+.digital-twin-panel {
+
+    margin-top: 24px;
+
+}
+
+
+.digital-twin-campus {
+
+    position: relative;
+
+    min-height: 330px;
+
+    margin-top: 24px;
+
+    padding: 45px;
+
+    display: grid;
+
+    grid-template-columns:
+        repeat(3, 1fr);
+
+    grid-template-rows:
+        1fr 1fr;
+
+    gap: 28px;
+
+    align-items: center;
+
+    justify-items: center;
+
+    background:
+        radial-gradient(
+            circle at center,
+            rgba(34, 211, 238, 0.06),
+            transparent 55%
+        ),
+        linear-gradient(
+            135deg,
+            rgba(15, 23, 42, 0.9),
+            rgba(15, 23, 42, 0.65)
+        );
+
+    border:
+        1px solid
+        rgba(148, 163, 184, 0.12);
+
+    border-radius: 18px;
+
+    overflow: hidden;
+
+}
+
+
+/* Campus grid */
+
+.digital-twin-campus::before {
+
+    content: "";
+
+    position: absolute;
+
+    inset: 35px;
+
+    background-image:
+        linear-gradient(
+            rgba(148, 163, 184, 0.06) 1px,
+            transparent 1px
+        ),
+        linear-gradient(
+            90deg,
+            rgba(148, 163, 184, 0.06) 1px,
+            transparent 1px
+        );
+
+    background-size:
+        45px 45px;
+
+    pointer-events: none;
+
+}
+
+
+/* ============================================================
+   DIGITAL TWIN BUILDINGS
+============================================================ */
+
+.twin-building {
+
+    position: relative;
+
+    z-index: 2;
+
+    width: 145px;
+
+    min-height: 120px;
+
+    display: flex;
+
+    flex-direction: column;
+
+    align-items: center;
+
+    justify-content: center;
+
+    gap: 7px;
+
+    border:
+        1px solid
+        rgba(148, 163, 184, 0.16);
+
+    border-radius: 16px;
+
+    background:
+        rgba(15, 23, 42, 0.92);
+
+    color:
+        #e2e8f0;
+
+    cursor: pointer;
+
+    transition:
+        transform 0.2s ease,
+        border-color 0.2s ease,
+        background 0.2s ease,
+        box-shadow 0.2s ease;
+
+}
+
+
+.twin-building:hover {
+
+    transform:
+        translateY(-5px);
+
+    border-color:
+        rgba(34, 211, 238, 0.45);
+
+    background:
+        rgba(30, 41, 59, 0.96);
+
+    box-shadow:
+        0 12px 30px rgba(0, 0, 0, 0.25),
+        0 0 20px rgba(34, 211, 238, 0.06);
+
+}
+
+
+.twin-building.active {
+
+    border-color:
+        rgba(34, 211, 238, 0.7);
+
+    background:
+        rgba(30, 41, 59, 0.98);
+
+    box-shadow:
+        0 0 0 1px
+            rgba(34, 211, 238, 0.15),
+        0 12px 35px
+            rgba(0, 0, 0, 0.3);
+
+}
+
+
+/* Building positions */
+
+.twin-academic {
+
+    grid-column: 1;
+    grid-row: 1;
+
+}
+
+
+.twin-main {
+
+    grid-column: 2;
+    grid-row: 1;
+
+}
+
+
+.twin-hostel {
+
+    grid-column: 3;
+    grid-row: 1;
+
+}
+
+
+.twin-placement {
+
+    grid-column: 2;
+    grid-row: 2;
+
+}
+
+
+/* Building content */
+
+.twin-building-icon {
+
+    font-size: 28px;
+
+    line-height: 1;
+
+}
+
+
+.twin-building-name {
+
+    font-size: 13px;
+
+    font-weight: 600;
+
+    color:
+        #cbd5e1;
+
+}
+
+
+.twin-building strong {
+
+    font-size: 18px;
+
+    font-weight: 700;
+
+    color:
+        #67e8f9;
+
+}
+
+
+/* ============================================================
+   DIGITAL TWIN DETAILS
+============================================================ */
+
+.twin-building-details {
+
+    margin-top: 18px;
+
+    padding: 24px;
+
+    min-height: 145px;
+
+    border:
+        1px solid
+        rgba(148, 163, 184, 0.12);
+
+    border-radius: 16px;
+
+    background:
+        rgba(15, 23, 42, 0.55);
+
+}
+
+
+.twin-empty-state {
+
+    min-height: 100px;
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: center;
+
+    gap: 16px;
+
+    color:
+        #94a3b8;
+
+}
+
+
+.twin-empty-icon {
+
+    width: 42px;
+    height: 42px;
+
+    display: flex;
+
+    align-items: center;
+    justify-content: center;
+
+    border-radius: 12px;
+
+    background:
+        rgba(34, 211, 238, 0.08);
+
+    color:
+        #67e8f9;
+
+    font-size: 22px;
+
+}
+
+
+.twin-empty-state strong {
+
+    display: block;
+
+    margin-bottom: 5px;
+
+    color:
+        #e2e8f0;
+
+    font-size: 14px;
+
+}
+
+
+.twin-empty-state p {
+
+    margin: 0;
+
+    color:
+        #64748b;
+
+    font-size: 12px;
+
+}
+
+
+/* ============================================================
+   SELECTED BUILDING
+============================================================ */
+
+.twin-details-header {
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: space-between;
+
+    margin-bottom: 18px;
+
+}
+
+
+.twin-details-title {
+
+    display: flex;
+
+    align-items: center;
+
+    gap: 10px;
+
+}
+
+
+.twin-details-title h4 {
+
+    margin: 0;
+
+    font-size: 17px;
+
+    font-weight: 600;
+
+    color:
+        #f1f5f9;
+
+}
+
+
+.twin-details-title span {
+
+    font-size: 20px;
+
+}
+
+
+.twin-details-score {
+
+    text-align: right;
+
+}
+
+
+.twin-details-score span {
+
+    display: block;
+
+    font-size: 10px;
+
+    text-transform: uppercase;
+
+    letter-spacing: 0.7px;
+
+    color:
+        #64748b;
+
+}
+
+
+.twin-details-score strong {
+
+    font-size: 22px;
+
+    color:
+        #67e8f9;
+
+}
+
+
+/* ============================================================
+   DIGITAL TWIN METRICS
+============================================================ */
+
+.twin-metrics {
+
+    display: grid;
+
+    grid-template-columns:
+        repeat(4, 1fr);
+
+    gap: 12px;
+
+}
+
+
+.twin-metric {
+
+    padding: 14px;
+
+    border:
+        1px solid
+        rgba(148, 163, 184, 0.09);
+
+    border-radius: 12px;
+
+    background:
+        rgba(15, 23, 42, 0.55);
+
+}
+
+
+.twin-metric-label {
+
+    display: block;
+
+    margin-bottom: 6px;
+
+    font-size: 10px;
+
+    text-transform: uppercase;
+
+    letter-spacing: 0.5px;
+
+    color:
+        #64748b;
+
+}
+
+
+.twin-metric strong {
+
+    font-size: 15px;
+
+    font-weight: 600;
+
+    color:
+        #e2e8f0;
+
+}
+
+
+.twin-metric small {
+
+    margin-left: 3px;
+
+    font-size: 10px;
+
+    color:
+        #64748b;
+
+}
+
+
+/* ============================================================
+   DIGITAL TWIN RECOMMENDATION
+============================================================ */
+
+.twin-recommendation {
+
+    margin-top: 14px;
+
+    padding:
+        12px 14px;
+
+    border-left:
+        3px solid
+        #67e8f9;
+
+    border-radius: 8px;
+
+    background:
+        rgba(34, 211, 238, 0.04);
+
+    font-size: 12px;
+
+    color:
+        #94a3b8;
+
+}
+
+
+.twin-recommendation strong {
+
+    color:
+        #cbd5e1;
 
 }
 
@@ -1585,7 +2236,7 @@ body {
 
 
 /* ============================================================
-   ML PREDICTION PANEL
+   ML PREDICTION
 ============================================================ */
 
 .prediction-panel {
@@ -1788,6 +2439,8 @@ body {
 
 .error-message {
 
+    padding: 15px;
+
     border:
         1px solid
         rgba(239, 115, 115, 0.15);
@@ -1796,6 +2449,11 @@ body {
 
     background:
         var(--red-soft);
+
+    color:
+        var(--red);
+
+    font-size: 11px;
 
 }
 
@@ -1835,12 +2493,10 @@ body {
 
 
 /* ============================================================
-   RESPONSIVE
+   RESPONSIVE - 1100px
 ============================================================ */
 
-@media (
-    max-width: 1100px
-) {
+@media (max-width: 1100px) {
 
     .kpi-grid {
 
@@ -1877,9 +2533,50 @@ body {
 }
 
 
-@media (
-    max-width: 760px
-) {
+/* ============================================================
+   RESPONSIVE - 900px
+============================================================ */
+
+@media (max-width: 900px) {
+
+    .digital-twin-campus {
+
+        grid-template-columns:
+            repeat(2, 1fr);
+
+        grid-template-rows:
+            repeat(2, 1fr);
+
+    }
+
+
+    .twin-academic,
+    .twin-main,
+    .twin-hostel,
+    .twin-placement {
+
+        grid-column: auto;
+
+        grid-row: auto;
+
+    }
+
+
+    .twin-metrics {
+
+        grid-template-columns:
+            repeat(2, 1fr);
+
+    }
+
+}
+
+
+/* ============================================================
+   RESPONSIVE - 760px
+============================================================ */
+
+@media (max-width: 760px) {
 
     .topbar {
 
@@ -1888,7 +2585,8 @@ body {
         padding:
             18px 20px;
 
-        align-items: flex-start;
+        align-items:
+            flex-start;
 
     }
 
@@ -1920,9 +2618,11 @@ body {
     .dashboard-intro,
     .predictive-heading {
 
-        flex-direction: column;
+        flex-direction:
+            column;
 
-        align-items: flex-start;
+        align-items:
+            flex-start;
 
     }
 
@@ -2010,12 +2710,75 @@ body {
 
     }
 
+
+    .digital-twin-campus {
+
+        padding:
+            30px 20px;
+
+    }
+
 }
 
 
-@media (
-    max-width: 480px
-) {
+/* ============================================================
+   RESPONSIVE - 600px
+============================================================ */
+
+@media (max-width: 600px) {
+
+    .digital-twin-campus {
+
+        padding:
+            25px 15px;
+
+        grid-template-columns:
+            1fr;
+
+        grid-template-rows:
+            auto;
+
+        min-height:
+            auto;
+
+    }
+
+
+    .twin-building {
+
+        width: 100%;
+
+        max-width:
+            180px;
+
+    }
+
+
+    .twin-metrics {
+
+        grid-template-columns:
+            1fr;
+
+    }
+
+
+    .twin-details-header {
+
+        align-items:
+            flex-start;
+
+        gap: 15px;
+
+    }
+
+}
+
+
+/* ============================================================
+   RESPONSIVE - 480px
+============================================================ */
+
+@media (max-width: 480px) {
 
     .brand h1 {
 
@@ -2044,6 +2807,23 @@ body {
 
         padding:
             17px;
+
+    }
+
+
+    .energy-chart-wrapper {
+
+        height:
+            320px;
+
+    }
+
+
+    .dashboard-intro p,
+    .predictive-heading p {
+
+        font-size:
+            11px;
 
     }
 

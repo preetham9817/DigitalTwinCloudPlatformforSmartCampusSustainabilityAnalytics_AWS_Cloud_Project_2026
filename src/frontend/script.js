@@ -2,6 +2,9 @@ const API_URL = "http://127.0.0.1:5000";
 
 let energyChart = null;
 
+let digitalTwinBuildings = [];
+let digitalTwinRecommendations = [];
+
 
 // ============================================================
 // LOAD DASHBOARD
@@ -14,36 +17,38 @@ async function loadDashboard() {
         const response =
             await fetch(`${API_URL}/api/analytics`);
 
+        if (!response.ok) {
+            throw new Error("Analytics request failed");
+        }
+
         const data =
             await response.json();
 
 
         document.getElementById("energy").textContent =
-            data.average_energy;
+            Number(data.average_energy).toFixed(2);
 
         document.getElementById("water").textContent =
-            data.average_water;
+            Number(data.average_water).toFixed(2);
 
         document.getElementById("occupancy").textContent =
-            data.average_occupancy;
+            Number(data.average_occupancy).toFixed(2);
 
         document.getElementById("sustainability").textContent =
-            data.average_sustainability_score;
+            Number(data.average_sustainability_score).toFixed(2);
 
         document.getElementById("temperature").textContent =
-            data.average_temperature;
+            Number(data.average_temperature).toFixed(2);
 
         document.getElementById("humidity").textContent =
-            data.average_humidity;
+            Number(data.average_humidity).toFixed(2);
 
         document.getElementById("co2").textContent =
-            data.average_co2;
+            Number(data.average_co2).toFixed(2);
 
         document.getElementById("records").textContent =
             data.total_records;
 
-
-        loadBuildingScores();
 
     }
 
@@ -67,10 +72,24 @@ async function loadBuildingScores() {
 
     try {
 
+        /*
+            We use predictive-analysis here because it already
+            contains the average sustainability score for every
+            building.
+        */
+
         const response =
             await fetch(
-                `${API_URL}/api/sustainability`
+                `${API_URL}/api/predictive-analysis`
             );
+
+        if (!response.ok) {
+
+            throw new Error(
+                "Building analysis request failed"
+            );
+
+        }
 
         const data =
             await response.json();
@@ -82,58 +101,104 @@ async function loadBuildingScores() {
             );
 
 
+        if (!container) {
+
+            console.error(
+                "buildingScores element not found"
+            );
+
+            return;
+
+        }
+
+
         container.innerHTML = "";
 
 
-        const scores =
-            data.sustainability_scores;
+        const buildings =
+            data.building_analysis || [];
 
 
-        for (
-            const building in scores
-        ) {
+        if (buildings.length === 0) {
 
-            const score =
-                scores[building];
-
-
-            const item =
-                document.createElement("div");
-
-
-            item.className =
-                "building-item";
-
-
-            item.innerHTML = `
-
-                <div class="building-header">
-
-                    <span class="building-name">
-                        ${building}
-                    </span>
-
-                    <span class="building-score">
-                        ${score}
-                    </span>
-
+            container.innerHTML = `
+                <div class="no-data">
+                    No building data available.
                 </div>
-
-                <div class="progress">
-
-                    <div
-                        class="progress-bar"
-                        style="width: ${score}%"
-                    ></div>
-
-                </div>
-
             `;
 
-
-            container.appendChild(item);
+            return;
 
         }
+
+
+        const buildingOrder = [
+            "Academic",
+            "Main",
+            "Hostel",
+            "Placement"
+        ];
+
+
+        buildings.sort(
+            (a, b) =>
+                buildingOrder.indexOf(a.building) -
+                buildingOrder.indexOf(b.building)
+        );
+
+
+        buildings.forEach(
+            building => {
+
+                const score =
+                    Number(
+                        building.sustainability_score
+                    );
+
+
+                const item =
+                    document.createElement(
+                        "div"
+                    );
+
+
+                item.className =
+                    "building-item";
+
+
+                item.innerHTML = `
+
+                    <div class="building-header">
+
+                        <span class="building-name">
+                            ${building.building}
+                        </span>
+
+                        <span class="building-score">
+                            ${score.toFixed(2)}
+                        </span>
+
+                    </div>
+
+
+                    <div class="progress">
+
+                        <div
+                            class="progress-bar"
+                            style="width: ${Math.min(score, 100)}%"
+                        ></div>
+
+                    </div>
+
+                `;
+
+
+                container.appendChild(
+                    item
+                );
+
+            }
+        );
 
     }
 
@@ -143,6 +208,32 @@ async function loadBuildingScores() {
             "Error loading building data:",
             error
         );
+
+
+        const container =
+            document.getElementById(
+                "buildingScores"
+            );
+
+
+        if (container) {
+
+            container.innerHTML = `
+
+                <div class="no-data error-message">
+
+                    Unable to load building data.
+
+                    <br><br>
+
+                    Make sure the Flask backend
+                    is running on port 5000.
+
+                </div>
+
+            `;
+
+        }
 
     }
 
@@ -163,37 +254,169 @@ async function loadEnergyChart() {
             );
 
 
+        if (!response.ok) {
+
+            throw new Error(
+                "Sensor data request failed"
+            );
+
+        }
+
+
         const data =
             await response.json();
 
 
-        const selectedData =
-            data.slice(0, 20);
+        if (
+            !Array.isArray(data) ||
+            data.length === 0
+        ) {
+
+            console.error(
+                "No sensor data available"
+            );
+
+            return;
+
+        }
 
 
-        const labels =
-            selectedData.map(
-                item => item.Timestamp
+        /*
+            Create campus-wide daily energy totals.
+
+            Each date has 4 building records:
+
+            Academic
+            Hostel
+            Main
+            Placement
+
+            We add them together to get one campus value
+            for each date.
+        */
+
+        const dailyEnergy = {};
+
+
+        data.forEach(
+            item => {
+
+                const date =
+                    item.Timestamp;
+
+
+                const energy =
+                    Number(
+                        item.Energy_Consumption_kWh
+                    );
+
+
+                if (
+                    !date ||
+                    Number.isNaN(energy)
+                ) {
+
+                    return;
+
+                }
+
+
+                if (
+                    !dailyEnergy[date]
+                ) {
+
+                    dailyEnergy[date] = 0;
+
+                }
+
+
+                dailyEnergy[date] +=
+                    energy;
+
+            }
+        );
+
+
+        /*
+            Sort DD-MM-YYYY dates properly.
+        */
+
+        const sortedDates =
+            Object.keys(
+                dailyEnergy
+            ).sort(
+                (a, b) => {
+
+                    const [
+                        dayA,
+                        monthA,
+                        yearA
+                    ] =
+                        a.split("-")
+                         .map(Number);
+
+
+                    const [
+                        dayB,
+                        monthB,
+                        yearB
+                    ] =
+                        b.split("-")
+                         .map(Number);
+
+
+                    return new Date(
+                        yearA,
+                        monthA - 1,
+                        dayA
+                    ) -
+                    new Date(
+                        yearB,
+                        monthB - 1,
+                        dayB
+                    );
+
+                }
             );
 
 
         const energyValues =
-            selectedData.map(
-                item =>
-                    item.Energy_Consumption_kWh
+            sortedDates.map(
+                date =>
+                    Number(
+                        dailyEnergy[
+                            date
+                        ].toFixed(2)
+                    )
             );
 
 
-        const ctx =
+        const canvas =
             document.getElementById(
                 "energyChart"
             );
 
 
-        if (!ctx) {
+        const wrapper =
+            document.getElementById(
+                "energyChartWrapper"
+            );
+
+
+        if (!canvas) {
+
+            console.error(
+                "energyChart canvas not found"
+            );
+
             return;
+
         }
 
+
+        /*
+            Destroy old chart.
+        */
 
         if (energyChart) {
 
@@ -202,23 +425,61 @@ async function loadEnergyChart() {
         }
 
 
+        /*
+            Make the canvas wider than the visible
+            panel.
+
+            One date gets approximately 55px.
+
+            Minimum width = 1200px.
+        */
+
+        const chartWidth =
+            Math.max(
+                1200,
+                sortedDates.length * 55
+            );
+
+
+        canvas.width =
+            chartWidth;
+
+
+        canvas.height =
+            340;
+
+
+        canvas.style.width =
+            `${chartWidth}px`;
+
+
+        canvas.style.height =
+            "340px";
+
+
+        /*
+            Create chart.
+        */
+
         energyChart =
             new Chart(
-                ctx,
+                canvas,
                 {
 
                     type: "line",
 
+
                     data: {
 
-                        labels: labels,
+                        labels:
+                            sortedDates,
 
                         datasets: [
 
                             {
 
                                 label:
-                                    "Energy Consumption",
+                                    "Campus Energy Consumption",
 
                                 data:
                                     energyValues,
@@ -250,13 +511,26 @@ async function loadEnergyChart() {
 
                     },
 
+
                     options: {
 
                         responsive:
-                            true,
+                            false,
 
                         maintainAspectRatio:
                             false,
+
+
+                        interaction: {
+
+                            intersect:
+                                false,
+
+                            mode:
+                                "index"
+
+                        },
+
 
                         plugins: {
 
@@ -265,17 +539,49 @@ async function loadEnergyChart() {
                                 display:
                                     false
 
+                            },
+
+
+                            tooltip: {
+
+                                callbacks: {
+
+                                    label:
+                                        function(context) {
+
+                                            return (
+                                                " Energy: " +
+                                                Number(
+                                                    context.raw
+                                                ).toLocaleString(
+                                                    undefined,
+                                                    {
+                                                        maximumFractionDigits: 2
+                                                    }
+                                                ) +
+                                                " kWh"
+                                            );
+
+                                        }
+
+                                }
+
                             }
 
                         },
+
 
                         scales: {
 
                             x: {
 
                                 grid: {
-                                    display: false
+
+                                    display:
+                                        false
+
                                 },
+
 
                                 ticks: {
 
@@ -283,13 +589,27 @@ async function loadEnergyChart() {
                                         "#718096",
 
                                     maxTicksLimit:
-                                        6
+                                        12,
+
+                                    autoSkip:
+                                        true,
+
+                                    maxRotation:
+                                        0,
+
+                                    minRotation:
+                                        0
 
                                 }
 
                             },
 
+
                             y: {
+
+                                beginAtZero:
+                                    false,
+
 
                                 grid: {
 
@@ -298,10 +618,23 @@ async function loadEnergyChart() {
 
                                 },
 
+
                                 ticks: {
 
                                     color:
-                                        "#718096"
+                                        "#718096",
+
+                                    callback:
+                                        function(value) {
+
+                                            return (
+                                                Number(
+                                                    value
+                                                ).toLocaleString() +
+                                                " kWh"
+                                            );
+
+                                        }
 
                                 }
 
@@ -313,6 +646,17 @@ async function loadEnergyChart() {
 
                 }
             );
+
+
+        /*
+            Make sure wrapper scrolls to the beginning.
+        */
+
+        if (wrapper) {
+
+            wrapper.scrollLeft = 0;
+
+        }
 
     }
 
@@ -340,6 +684,15 @@ async function loadPredictiveAnalysis() {
             await fetch(
                 `${API_URL}/api/predictive-analysis`
             );
+
+
+        if (!response.ok) {
+
+            throw new Error(
+                "Predictive analysis request failed"
+            );
+
+        }
 
 
         const data =
@@ -406,6 +759,11 @@ function renderAttentionAreas(
         );
 
 
+    if (!container) {
+        return;
+    }
+
+
     container.innerHTML = "";
 
 
@@ -453,7 +811,8 @@ function renderAttentionAreas(
                 )
             ) {
 
-                icon = "⚡";
+                icon =
+                    "⚡";
 
             }
 
@@ -463,7 +822,8 @@ function renderAttentionAreas(
                 )
             ) {
 
-                icon = "💧";
+                icon =
+                    "💧";
 
             }
 
@@ -473,7 +833,8 @@ function renderAttentionAreas(
                 )
             ) {
 
-                icon = "🌫";
+                icon =
+                    "🌫";
 
             }
 
@@ -483,7 +844,8 @@ function renderAttentionAreas(
                 )
             ) {
 
-                icon = "🌱";
+                icon =
+                    "🌱";
 
             }
 
@@ -499,7 +861,9 @@ function renderAttentionAreas(
 
                 <div class="attention-content">
 
-                    <div class="attention-title-row">
+                    <div
+                        class="attention-title-row"
+                    >
 
                         <h4>
                             ${area.area}
@@ -519,7 +883,9 @@ function renderAttentionAreas(
                     </p>
 
 
-                    <div class="recommendation-text">
+                    <div
+                        class="recommendation-text"
+                    >
 
                         <strong>
                             Suggested action:
@@ -545,7 +911,7 @@ function renderAttentionAreas(
 
 
 // ============================================================
-// SEVERITY CLASS
+// SEVERITY
 // ============================================================
 
 function getSeverityClass(
@@ -587,7 +953,7 @@ function getSeverityClass(
 
 
 // ============================================================
-// BUILDING PREDICTIVE ANALYSIS
+// PREDICTIVE BUILDINGS
 // ============================================================
 
 function renderPredictiveBuildings(
@@ -598,6 +964,11 @@ function renderPredictiveBuildings(
         document.getElementById(
             "predictiveBuildings"
         );
+
+
+    if (!container) {
+        return;
+    }
 
 
     container.innerHTML = "";
@@ -611,7 +982,9 @@ function renderPredictiveBuildings(
         container.innerHTML = `
 
             <div class="no-data">
+
                 No building analysis available.
+
             </div>
 
         `;
@@ -683,7 +1056,9 @@ function renderPredictiveBuildings(
 
             card.innerHTML = `
 
-                <div class="predictive-building-header">
+                <div
+                    class="predictive-building-header"
+                >
 
                     <div>
 
@@ -707,17 +1082,24 @@ function renderPredictiveBuildings(
                 </div>
 
 
-                <div class="building-score-track">
+                <div
+                    class="building-score-track"
+                >
 
                     <div
                         class="building-score-fill"
-                        style="width: ${Math.min(score, 100)}%"
+                        style="
+                            width:
+                            ${Math.min(score, 100)}%
+                        "
                     ></div>
 
                 </div>
 
 
-                <div class="building-metrics">
+                <div
+                    class="building-metrics"
+                >
 
                     <div>
 
@@ -726,7 +1108,9 @@ function renderPredictiveBuildings(
                         </span>
 
                         <strong>
-                            ${building.energy}
+                            ${Number(
+                                building.energy
+                            ).toFixed(2)}
                         </strong>
 
                     </div>
@@ -739,7 +1123,9 @@ function renderPredictiveBuildings(
                         </span>
 
                         <strong>
-                            ${building.water}
+                            ${Number(
+                                building.water
+                            ).toFixed(2)}
                         </strong>
 
                     </div>
@@ -752,7 +1138,9 @@ function renderPredictiveBuildings(
                         </span>
 
                         <strong>
-                            ${building.co2}
+                            ${Number(
+                                building.co2
+                            ).toFixed(2)}
                         </strong>
 
                     </div>
@@ -799,6 +1187,11 @@ function renderTrends(
         document.getElementById(
             "trendAnalysis"
         );
+
+
+    if (!container) {
+        return;
+    }
 
 
     container.innerHTML = "";
@@ -936,8 +1329,10 @@ function renderTrends(
                 <strong
                     class="${directionClass}"
                 >
+
                     ${arrow}
                     ${item.direction}
+
                 </strong>
 
                 <small>
@@ -975,6 +1370,11 @@ function renderFeatureImportance(
         document.getElementById(
             "featureImportance"
         );
+
+
+    if (!container) {
+        return;
+    }
 
 
     container.innerHTML = "";
@@ -1048,10 +1448,12 @@ function renderFeatureImportance(
 
 
     const sortedFeatures =
-        Object.entries(features)
-        .sort(
+        Object.entries(
+            features
+        ).sort(
             (a, b) =>
-                b[1] - a[1]
+                Number(b[1]) -
+                Number(a[1])
         );
 
 
@@ -1068,35 +1470,58 @@ function renderFeatureImportance(
                 "feature-item";
 
 
+            const value =
+                Number(
+                    importance
+                );
+
+
             item.innerHTML = `
 
-                <div class="feature-header">
+                <div
+                    class="feature-header"
+                >
 
                     <span>
 
-                        <span class="feature-icon">
+                        <span
+                            class="feature-icon"
+                        >
 
-                            ${featureIcons[feature] || "•"}
+                            ${
+                                featureIcons[
+                                    feature
+                                ] || "•"
+                            }
 
                         </span>
 
-                        ${featureNames[feature] || feature}
+                        ${
+                            featureNames[
+                                feature
+                            ] || feature
+                        }
 
                     </span>
 
 
                     <strong>
-                        ${Number(importance).toFixed(2)}%
+                        ${value.toFixed(2)}%
                     </strong>
 
                 </div>
 
 
-                <div class="feature-track">
+                <div
+                    class="feature-track"
+                >
 
                     <div
                         class="feature-fill"
-                        style="width: ${Math.min(Number(importance), 100)}%"
+                        style="
+                            width:
+                            ${Math.min(value, 100)}%
+                        "
                     ></div>
 
                 </div>
@@ -1126,6 +1551,11 @@ function renderImprovementAreas(
         document.getElementById(
             "improvementAreas"
         );
+
+
+    if (!container) {
+        return;
+    }
 
 
     container.innerHTML = "";
@@ -1205,7 +1635,9 @@ function renderImprovementAreas(
 
             card.innerHTML = `
 
-                <div class="improvement-icon">
+                <div
+                    class="improvement-icon"
+                >
 
                     ${icon}
 
@@ -1222,7 +1654,10 @@ function renderImprovementAreas(
                         ${area.reason}
                     </p>
 
-                    <div class="improvement-action">
+
+                    <div
+                        class="improvement-action"
+                    >
 
                         <strong>
                             Action:
@@ -1259,6 +1694,11 @@ function renderBuildingRecommendations(
         document.getElementById(
             "buildingRecommendations"
         );
+
+
+    if (!container) {
+        return;
+    }
 
 
     container.innerHTML = "";
@@ -1299,7 +1739,9 @@ function renderBuildingRecommendations(
 
 
             const list =
-                item.recommendations
+                (
+                    item.recommendations || []
+                )
                 .map(
                     recommendation => `
 
@@ -1314,9 +1756,13 @@ function renderBuildingRecommendations(
 
             card.innerHTML = `
 
-                <div class="recommendation-building">
+                <div
+                    class="recommendation-building"
+                >
 
-                    <span class="recommendation-building-icon">
+                    <span
+                        class="recommendation-building-icon"
+                    >
                         🏢
                     </span>
 
@@ -1353,10 +1799,15 @@ function showPredictiveError() {
     const ids = [
 
         "attentionAreas",
+
         "predictiveBuildings",
+
         "trendAnalysis",
+
         "featureImportance",
+
         "improvementAreas",
+
         "buildingRecommendations"
 
     ];
@@ -1375,7 +1826,9 @@ function showPredictiveError() {
 
                 element.innerHTML = `
 
-                    <div class="no-data error-message">
+                    <div
+                        class="no-data error-message"
+                    >
 
                         Unable to load predictive
                         analysis from the backend.
@@ -1404,39 +1857,51 @@ function showPredictiveError() {
 async function predictScore() {
 
     const energy =
-        document.getElementById(
-            "p_energy"
-        ).value;
+        Number(
+            document.getElementById(
+                "p_energy"
+            ).value
+        );
 
 
     const water =
-        document.getElementById(
-            "p_water"
-        ).value;
+        Number(
+            document.getElementById(
+                "p_water"
+            ).value
+        );
 
 
     const temperature =
-        document.getElementById(
-            "p_temperature"
-        ).value;
+        Number(
+            document.getElementById(
+                "p_temperature"
+            ).value
+        );
 
 
     const humidity =
-        document.getElementById(
-            "p_humidity"
-        ).value;
+        Number(
+            document.getElementById(
+                "p_humidity"
+            ).value
+        );
 
 
     const co2 =
-        document.getElementById(
-            "p_co2"
-        ).value;
+        Number(
+            document.getElementById(
+                "p_co2"
+            ).value
+        );
 
 
     const occupancy =
-        document.getElementById(
-            "p_occupancy"
-        ).value;
+        Number(
+            document.getElementById(
+                "p_occupancy"
+            ).value
+        );
 
 
     const result =
@@ -1470,27 +1935,36 @@ async function predictScore() {
                         JSON.stringify({
 
                             Energy_Consumption_kWh:
-                                Number(energy),
+                                energy,
 
                             Water_Consumption_L:
-                                Number(water),
+                                water,
 
                             Temperature_C:
-                                Number(temperature),
+                                temperature,
 
                             Humidity_Percent:
-                                Number(humidity),
+                                humidity,
 
                             CO2_Level_ppm:
-                                Number(co2),
+                                co2,
 
                             Occupancy:
-                                Number(occupancy)
+                                occupancy
 
                         })
 
                 }
             );
+
+
+        if (!response.ok) {
+
+            throw new Error(
+                "Prediction request failed"
+            );
+
+        }
 
 
         const data =
@@ -1508,11 +1982,17 @@ async function predictScore() {
 
                 <strong>
 
-                    ${data.predicted_sustainability_score}
+                    ${
+                        Number(
+                            data.predicted_sustainability_score
+                        ).toFixed(2)
+                    }
 
                 </strong>
 
-                <span class="prediction-scale">
+                <span
+                    class="prediction-scale"
+                >
                     / 100
                 </span>
 
@@ -1546,11 +2026,396 @@ async function predictScore() {
 
 
 // ============================================================
+// DIGITAL TWIN
+// ============================================================
+
+async function loadDigitalTwin() {
+
+    try {
+
+        const response =
+            await fetch(
+                `${API_URL}/api/predictive-analysis`
+            );
+
+
+        if (!response.ok) {
+
+            throw new Error(
+                "Digital Twin API request failed"
+            );
+
+        }
+
+
+        const data =
+            await response.json();
+
+
+        console.log(
+            "Digital Twin Data:",
+            data
+        );
+
+
+        digitalTwinBuildings =
+            data.building_analysis || [];
+
+
+        digitalTwinRecommendations =
+            data.building_recommendations || [];
+
+
+        digitalTwinBuildings.forEach(
+            building => {
+
+                const element =
+                    document.getElementById(
+                        `twinScore${building.building}`
+                    );
+
+
+                if (element) {
+
+                    element.textContent =
+                        Number(
+                            building.sustainability_score
+                        ).toFixed(1);
+
+                }
+
+            }
+        );
+
+
+        if (
+            digitalTwinBuildings.length > 0
+        ) {
+
+            selectTwinBuilding(
+                digitalTwinBuildings[0].building
+            );
+
+        }
+
+    }
+
+    catch (error) {
+
+        console.error(
+            "Digital Twin Error:",
+            error
+        );
+
+
+        const details =
+            document.getElementById(
+                "twinBuildingDetails"
+            );
+
+
+        if (details) {
+
+            details.innerHTML = `
+
+                <div class="no-data">
+
+                    Unable to load Digital Twin data.
+
+                </div>
+
+            `;
+
+        }
+
+    }
+
+}
+
+
+// ============================================================
+// SELECT DIGITAL TWIN BUILDING
+// ============================================================
+
+function selectTwinBuilding(
+    buildingName
+) {
+
+    console.log(
+        "Selected building:",
+        buildingName
+    );
+
+
+    const building =
+        digitalTwinBuildings.find(
+            item =>
+                item.building ===
+                buildingName
+        );
+
+
+    if (!building) {
+
+        console.error(
+            "Building data not found:",
+            buildingName
+        );
+
+        return;
+
+    }
+
+
+    document
+        .querySelectorAll(
+            ".twin-building"
+        )
+        .forEach(
+            button => {
+
+                button.classList.remove(
+                    "active"
+                );
+
+            }
+        );
+
+
+    const selectedButton =
+        document.querySelector(
+            `.twin-building[data-building="${buildingName}"]`
+        );
+
+
+    if (selectedButton) {
+
+        selectedButton.classList.add(
+            "active"
+        );
+
+    }
+
+
+    const recommendationData =
+        digitalTwinRecommendations.find(
+            item =>
+                item.building ===
+                buildingName
+        );
+
+
+    let recommendation =
+        "No specific recommendation available.";
+
+
+    if (
+        recommendationData &&
+        recommendationData.recommendations &&
+        recommendationData.recommendations.length > 0
+    ) {
+
+        recommendation =
+            recommendationData
+                .recommendations
+                .join(", ");
+
+    }
+
+
+    const details =
+        document.getElementById(
+            "twinBuildingDetails"
+        );
+
+
+    if (!details) {
+        return;
+    }
+
+
+    details.innerHTML = `
+
+        <div
+            class="twin-details-header"
+        >
+
+            <div
+                class="twin-details-title"
+            >
+
+                <span>
+                    🏢
+                </span>
+
+                <h4>
+                    ${buildingName} Building
+                </h4>
+
+            </div>
+
+
+            <div
+                class="twin-details-score"
+            >
+
+                <span>
+                    Sustainability
+                </span>
+
+                <strong>
+
+                    ${
+                        Number(
+                            building.sustainability_score
+                        ).toFixed(2)
+                    }
+
+                </strong>
+
+            </div>
+
+        </div>
+
+
+        <div class="twin-metrics">
+
+
+            <div class="twin-metric">
+
+                <span
+                    class="twin-metric-label"
+                >
+                    Energy
+                </span>
+
+                <strong>
+
+                    ${
+                        Number(
+                            building.energy
+                        ).toFixed(2)
+                    }
+
+                </strong>
+
+                <small>
+                    kWh
+                </small>
+
+            </div>
+
+
+            <div class="twin-metric">
+
+                <span
+                    class="twin-metric-label"
+                >
+                    Water
+                </span>
+
+                <strong>
+
+                    ${
+                        Number(
+                            building.water
+                        ).toFixed(2)
+                    }
+
+                </strong>
+
+                <small>
+                    L
+                </small>
+
+            </div>
+
+
+            <div class="twin-metric">
+
+                <span
+                    class="twin-metric-label"
+                >
+                    CO₂
+                </span>
+
+                <strong>
+
+                    ${
+                        Number(
+                            building.co2
+                        ).toFixed(2)
+                    }
+
+                </strong>
+
+                <small>
+                    ppm
+                </small>
+
+            </div>
+
+
+            <div class="twin-metric">
+
+                <span
+                    class="twin-metric-label"
+                >
+                    Occupancy
+                </span>
+
+                <strong>
+
+                    ${
+                        Number(
+                            building.occupancy
+                        ).toFixed(2)
+                    }
+
+                </strong>
+
+                <small>
+                    people
+                </small>
+
+            </div>
+
+
+        </div>
+
+
+        <div class="twin-recommendation">
+
+            <strong>
+                Recommendation:
+            </strong>
+
+            ${recommendation}
+
+        </div>
+
+    `;
+
+}
+
+
+// ============================================================
 // INITIALIZE DASHBOARD
 // ============================================================
 
-loadDashboard();
+document.addEventListener(
+    "DOMContentLoaded",
+    function() {
 
-loadEnergyChart();
+        loadDashboard();
 
-loadPredictiveAnalysis();
+        loadBuildingScores();
+
+        loadEnergyChart();
+
+        loadPredictiveAnalysis();
+
+        loadDigitalTwin();
+
+    }
+);
