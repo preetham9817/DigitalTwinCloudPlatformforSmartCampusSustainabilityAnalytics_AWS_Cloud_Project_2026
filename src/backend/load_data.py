@@ -1,38 +1,171 @@
 import pandas as pd
 import os
+import glob
 
-datasets = {
-    "Academic": "../../dataset/academic_building_sensor_data.csv",
-    "Hostel": "../../dataset/hostel_building_sensor_data.csv",
-    "Main": "../../dataset/main_building_sensor_data.csv",
-    "Placement": "../../dataset/placement_building_sensor_data.csv"
-}
 
-dataframes = []
+# ============================================================
+# DATASET DIRECTORY
+# ============================================================
 
-for name, path in datasets.items():
-    df = pd.read_csv(path)
+BASE_DIR = os.path.dirname(
+    os.path.dirname(
+        os.path.dirname(
+            os.path.abspath(__file__)
+        )
+    )
+)
 
-    # Add building type so we know which dataset the record came from
-    df["Building_Type"] = name
+DATASET_DIR = os.path.join(
+    BASE_DIR,
+    "dataset"
+)
 
-    dataframes.append(df)
 
-# Combine all four datasets
-combined_df = pd.concat(dataframes, ignore_index=True)
+# ============================================================
+# LOAD ALL BUILDING DATASETS
+# ============================================================
 
-print("Total records:", len(combined_df))
-print("Total columns:", len(combined_df.columns))
+def load_data():
 
-print("\nBuilding Type Distribution:")
-print(combined_df["Building_Type"].value_counts())
+    dataframes = []
 
-print("\nCombined Dataset:")
-print(combined_df.head())
+    # Find all CSV files in dataset folder
+    csv_files = glob.glob(
+        os.path.join(
+            DATASET_DIR,
+            "*.csv"
+        )
+    )
 
-# Save combined dataset
-output_path = "../../dataset/combined_sensor_data.csv"
-combined_df.to_csv(output_path, index=False)
+    for file_path in csv_files:
 
-print("\nCombined dataset saved successfully.")
-print(output_path)
+        filename = os.path.basename(
+            file_path
+        )
+
+        # ----------------------------------------------------
+        # IMPORTANT:
+        # Do NOT load the combined file here.
+        # Otherwise records would be duplicated.
+        # ----------------------------------------------------
+
+        if filename == "combined_sensor_data.csv":
+            continue
+
+        try:
+
+            df = pd.read_csv(
+                file_path
+            )
+
+            if df.empty:
+                continue
+
+            # ------------------------------------------------
+            # Make sure Building_Type exists
+            # ------------------------------------------------
+
+            if "Building_Type" not in df.columns:
+
+                building_name = filename.replace(
+                    "_building_sensor_data.csv",
+                    ""
+                )
+
+                df["Building_Type"] = (
+                    building_name.title()
+                )
+
+            dataframes.append(
+                df
+            )
+
+        except Exception as error:
+
+            print(
+                f"Could not load {filename}: {error}"
+            )
+
+
+    # ========================================================
+    # NO DATA FOUND
+    # ========================================================
+
+    if not dataframes:
+
+        print(
+            "No building datasets found."
+        )
+
+        return pd.DataFrame()
+
+
+    # ========================================================
+    # COMBINE ALL DATASETS
+    # ========================================================
+
+    combined_df = pd.concat(
+        dataframes,
+        ignore_index=True
+    )
+
+
+    # ========================================================
+    # REMOVE DUPLICATE RECORDS
+    # ========================================================
+
+    combined_df = combined_df.drop_duplicates(
+        ignore_index=True
+    )
+
+
+    # ========================================================
+    # RETURN DATA
+    # ========================================================
+
+    return combined_df
+
+
+# ============================================================
+# TEST WHEN RUN DIRECTLY
+# ============================================================
+
+if __name__ == "__main__":
+
+    df = load_data()
+
+    print(
+        "Total records:",
+        len(df)
+    )
+
+    print(
+        "Total columns:",
+        len(df.columns)
+    )
+
+    if not df.empty:
+
+        print(
+            "\nBuilding Distribution:"
+        )
+
+        print(
+            df["Building_Type"].value_counts()
+        )
+
+        print(
+            "\nDataset Columns:"
+        )
+
+        print(
+            list(df.columns)
+        )
+
+        print(
+            "\nFirst 5 Records:"
+        )
+
+        print(
+            df.head()
+        )
