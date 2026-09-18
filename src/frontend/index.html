@@ -3,18 +3,32 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <title>Digital Twin Campus</title>
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
 
-    <link rel="stylesheet" href="style.css">
+    <title>
+        Digital Twin Campus
+    </title>
 
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link
+        rel="stylesheet"
+        href="style.css"
+    >
+
+    <script
+        src="https://cdn.jsdelivr.net/npm/chart.js"
+    ></script>
 </head>
 
 <body>
 
-    <!-- HEADER -->
+    <!-- =====================================================
+         HEADER
+    ====================================================== -->
+
     <header class="topbar">
 
         <div class="brand">
@@ -24,188 +38,291 @@
             </div>
 
             <div>
-                <h1>Digital Twin Campus</h1>
-                <p>Smart Campus Sustainability Analytics</p>
+
+                <h1>
+                    Digital Twin Campus
+                </h1>
+
+                <p>
+                    Smart Campus Sustainability Analytics
+                </p>
+
             </div>
 
         </div>
 
+
         <div class="system-status">
+
             <span class="status-dot"></span>
-            <span>System Online</span>
+
+            <span>
+                System Online
+            </span>
+
         </div>
 
     </header>
 
 
-    <main>
+    <!-- =====================================================
+         MAIN DASHBOARD
+    ====================================================== -->
 
-        <!-- DASHBOARD TITLE -->
+    <main class="dashboard">
 
-        <div class="dashboard-intro">
+        <!-- =================================================
+             INTRO
+        ================================================== -->
+
+        <section class="dashboard-intro">
 
             <div>
-                <div class="eyebrow">CAMPUS OVERVIEW</div>
 
-                <h2>Smart Campus Dashboard</h2>
+                <span class="section-label">
+                    CAMPUS OVERVIEW
+                </span>
+
+                <h2>
+                    Smart Campus Dashboard
+                </h2>
 
                 <p>
-                    Real-time environmental and sustainability insights
-                    from campus sensor data.
+                    Monitor campus sustainability, environmental
+                    conditions and resource consumption through
+                    integrated digital twin analytics.
                 </p>
+
             </div>
 
-            <div class="data-status">
-                <span class="status-dot"></span>
+
+            <div class="live-indicator">
+
+                <span class="live-dot"></span>
+
                 Live Analytics
-            </div>
-
-        </div>
-
-
-        <!-- KPI CARDS -->
-
-        <section class="kpi-grid">
-
-            <div class="glass-card kpi-card">
-
-                <div class="kpi-top">
-                    <span class="kpi-label">ENERGY CONSUMPTION</span>
-                    <span class="kpi-icon">⚡</span>
-                </div>
-
-                <div class="kpi-value" id="energy">
-                    --
-                </div>
-
-                <div class="kpi-sub">
-                    Average kWh
-                </div>
-
-            </div>
-
-
-            <div class="glass-card kpi-card">
-
-                <div class="kpi-top">
-                    <span class="kpi-label">WATER USAGE</span>
-                    <span class="kpi-icon">💧</span>
-                </div>
-
-                <div class="kpi-value" id="water">
-                    --
-                </div>
-
-                <div class="kpi-sub">
-                    Average litres
-                </div>
-
-            </div>
-
-
-            <div class="glass-card kpi-card">
-
-                <div class="kpi-top">
-                    <span class="kpi-label">OCCUPANCY</span>
-                    <span class="kpi-icon">👥</span>
-                </div>
-
-                <div class="kpi-value" id="occupancy">
-                    --
-                </div>
-
-                <div class="kpi-sub">
-                    Average occupancy
-                </div>
-
-            </div>
-
-
-            <div class="glass-card kpi-card">
-
-                <div class="kpi-top">
-                    <span class="kpi-label">SUSTAINABILITY SCORE</span>
-                    <span class="kpi-icon">✓</span>
-                </div>
-
-                <div class="kpi-value score" id="sustainability">
-                    --
-                </div>
-
-                <div class="kpi-sub">
-                    Campus average
-                </div>
 
             </div>
 
         </section>
 
 
-        <!-- ANALYTICS -->
+        <!-- =================================================
+             KPI CARDS
+        ================================================== -->
+
+        <section class="kpi-grid">
+
+            <div class="kpi-card">
+
+                <div class="kpi-top">
+
+                    <span>
+                        Energy Consumption
+                    </span>
+
+                    <span class="kpi-icon">
+                        ⚡
+                    </span>
+
+                </div>
+
+                <div class="kpi-value">
+
+                    <span id="energy">
+                        --
+                    </span>
+
+                    <small>
+                        kWh
+                    </small>
+
+                </div>
+
+                <p>
+                    Campus average
+                </p>
+
+            </div>
+
+
+            <div class="kpi-card">
+
+                <div class="kpi-top">
+
+                    <span>
+                        Water Consumption
+                    </span>
+
+                    <span class="kpi-icon">
+                        💧
+                    </span>
+
+                </div>
+
+                <div class="kpi-value">
+
+                    <span id="water">
+                        --
+                    </span>
+
+                    <small>
+                        L
+                    </small>
+
+                </div>
+
+                <p>
+                    Campus average
+                </p>
+
+            </div>
+
+
+            <div class="kpi-card">
+
+                <div class="kpi-top">
+
+                    <span>
+                        Occupancy
+                    </span>
+
+                    <span class="kpi-icon">
+                        👥
+                    </span>
+
+                </div>
+
+                <div class="kpi-value">
+
+                    <span id="occupancy">
+                        --
+                    </span>
+
+                    <small>
+                        people
+                    </small>
+
+                </div>
+
+                <p>
+                    Average occupancy
+                </p>
+
+            </div>
+
+
+            <div class="kpi-card">
+
+                <div class="kpi-top">
+
+                    <span>
+                        Sustainability
+                    </span>
+
+                    <span class="kpi-icon">
+                        🌱
+                    </span>
+
+                </div>
+
+                <div class="kpi-value">
+
+                    <span id="sustainability">
+                        --
+                    </span>
+
+                    <small>
+                        /100
+                    </small>
+
+                </div>
+
+                <p>
+                    Average sustainability score
+                </p>
+
+            </div>
+
+        </section>
+
+
+        <!-- =================================================
+             ANALYTICS GRID
+        ================================================== -->
 
         <section class="analytics-grid">
 
 
-            <!-- ENERGY CHART -->
+            <!-- =============================================
+                 ENERGY CHART
+            ============================================== -->
 
-            <div class="glass-card chart-card">
+            <div class="panel chart-panel">
 
-                <div class="section-heading">
+                <div class="panel-header">
 
                     <div>
 
-                        <div class="eyebrow">
-                            SENSOR ANALYTICS
-                        </div>
+                        <span class="section-label">
+                            RESOURCE ANALYTICS
+                        </span>
 
-                        <h2>Energy Consumption</h2>
-
-                        <p>
-                            Recent energy consumption readings
-                            across campus buildings.
-                        </p>
+                        <h3>
+                            Energy Consumption Trend
+                        </h3>
 
                     </div>
 
-                    <div class="chart-label">
-                        kWh
-                    </div>
+                    <span class="panel-badge">
+                        Historical
+                    </span>
 
                 </div>
 
                 <div class="chart-container">
 
-                    <canvas id="energyChart"></canvas>
+                    <canvas
+                        id="energyChart"
+                    ></canvas>
 
                 </div>
 
             </div>
 
 
-            <!-- BUILDING SCORES -->
+            <!-- =============================================
+                 BUILDING SUSTAINABILITY
+            ============================================== -->
 
-            <div class="glass-card building-card">
+            <div class="panel">
 
-                <div class="section-heading">
+                <div class="panel-header">
 
                     <div>
 
-                        <div class="eyebrow">
+                        <span class="section-label">
                             BUILDING ANALYTICS
-                        </div>
+                        </span>
 
-                        <h2>Sustainability by Building</h2>
-
-                        <p>
-                            Average sustainability score
-                        </p>
+                        <h3>
+                            Sustainability by Building
+                        </h3>
 
                     </div>
 
                 </div>
 
-                <div id="buildingScores">
-                    Loading building data...
+
+                <div
+                    id="buildingScores"
+                    class="building-list"
+                >
+
+                    <div class="loading">
+                        Loading building data...
+                    </div>
+
                 </div>
 
             </div>
@@ -213,19 +330,23 @@
         </section>
 
 
-        <!-- ENVIRONMENT -->
+        <!-- =================================================
+             ENVIRONMENT PANEL
+        ================================================== -->
 
-        <section class="glass-card environment-panel">
+        <section class="panel environment-panel">
 
-            <div class="section-heading">
+            <div class="panel-header">
 
                 <div>
 
-                    <div class="eyebrow">
-                        ENVIRONMENTAL MONITORING
-                    </div>
+                    <span class="section-label">
+                        ENVIRONMENT
+                    </span>
 
-                    <h2>Campus Conditions</h2>
+                    <h3>
+                        Campus Environmental Conditions
+                    </h3>
 
                 </div>
 
@@ -234,62 +355,71 @@
 
             <div class="environment-grid">
 
-                <div class="metric">
 
-                    <div class="metric-title">
+                <div class="environment-item">
+
+                    <span class="environment-label">
                         Temperature
-                    </div>
+                    </span>
 
                     <strong id="temperature">
                         --
                     </strong>
 
-                    <span>°C</span>
+                    <small>
+                        °C
+                    </small>
 
                 </div>
 
 
-                <div class="metric">
+                <div class="environment-item">
 
-                    <div class="metric-title">
+                    <span class="environment-label">
                         Humidity
-                    </div>
+                    </span>
 
                     <strong id="humidity">
                         --
                     </strong>
 
-                    <span>%</span>
+                    <small>
+                        %
+                    </small>
 
                 </div>
 
 
-                <div class="metric">
+                <div class="environment-item">
 
-                    <div class="metric-title">
+                    <span class="environment-label">
                         CO₂ Level
-                    </div>
+                    </span>
 
                     <strong id="co2">
                         --
                     </strong>
 
-                    <span>ppm</span>
+                    <small>
+                        ppm
+                    </small>
 
                 </div>
 
 
-                <div class="metric">
+                <div class="environment-item">
 
-                    <div class="metric-title">
-                        Sensor Records
-                    </div>
+                    <span class="environment-label">
+                        Dataset Records
+                    </span>
 
                     <strong id="records">
                         --
                     </strong>
 
-                    <span>records</span>
+                    <small>
+                        records
+                    </small>
 
                 </div>
 
@@ -298,49 +428,337 @@
         </section>
 
 
-        <!-- MACHINE LEARNING -->
+        <!-- =================================================
+             PREDICTIVE ANALYSIS
+        ================================================== -->
 
-        <section class="glass-card prediction-panel">
+        <section class="predictive-section">
 
-            <div class="section-heading">
+
+            <div class="predictive-heading">
 
                 <div>
 
-                    <div class="eyebrow">
-                        MACHINE LEARNING
-                    </div>
+                    <span class="section-label">
+                        MACHINE LEARNING & ANALYTICS
+                    </span>
 
-                    <h2>Sustainability Prediction</h2>
+                    <h2>
+                        Predictive Analysis
+                    </h2>
 
                     <p>
-                        Enter environmental conditions to estimate
-                        the sustainability score using the trained
-                        Random Forest model.
+                        Data-driven analysis identifies areas requiring
+                        attention, building-level improvement opportunities
+                        and sustainability trends from the campus dataset.
                     </p>
 
                 </div>
 
-                <div class="ml-badge">
-                    Random Forest
+
+                <div class="prediction-status">
+
+                    <span class="status-dot"></span>
+
+                    ML Analysis Active
+
                 </div>
 
             </div>
 
 
-            <div class="prediction-grid">
+            <!-- =============================================
+                 ATTENTION AREAS
+            ============================================== -->
+
+            <div class="panel">
+
+                <div class="panel-header">
+
+                    <div>
+
+                        <span class="section-label">
+                            DATA-DRIVEN INSIGHTS
+                        </span>
+
+                        <h3>
+                            Areas Requiring Attention
+                        </h3>
+
+                    </div>
+
+                    <span class="panel-badge">
+                        Automatic
+                    </span>
+
+                </div>
+
+
+                <div
+                    id="attentionAreas"
+                    class="attention-grid"
+                >
+
+                    <div class="loading">
+                        Loading predictive analysis...
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <!-- =============================================
+                 PREDICTIVE GRID
+            ============================================== -->
+
+            <div class="predictive-grid">
+
+
+                <!-- =========================================
+                     BUILDING ANALYSIS
+                ========================================== -->
+
+                <div class="panel">
+
+                    <div class="panel-header">
+
+                        <div>
+
+                            <span class="section-label">
+                                BUILDING PERFORMANCE
+                            </span>
+
+                            <h3>
+                                Building Analysis
+                            </h3>
+
+                        </div>
+
+                    </div>
+
+
+                    <div
+                        id="predictiveBuildings"
+                        class="predictive-building-list"
+                    >
+
+                        <div class="loading">
+                            Loading...
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+                <!-- =========================================
+                     TREND ANALYSIS
+                ========================================== -->
+
+                <div class="panel">
+
+                    <div class="panel-header">
+
+                        <div>
+
+                            <span class="section-label">
+                                HISTORICAL ANALYSIS
+                            </span>
+
+                            <h3>
+                                Sustainability Trends
+                            </h3>
+
+                        </div>
+
+                    </div>
+
+
+                    <div
+                        id="trendAnalysis"
+                        class="trend-grid"
+                    >
+
+                        <div class="loading">
+                            Loading...
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <!-- =============================================
+                 FEATURE IMPORTANCE
+            ============================================== -->
+
+            <div class="panel">
+
+                <div class="panel-header">
+
+                    <div>
+
+                        <span class="section-label">
+                            RANDOM FOREST MODEL
+                        </span>
+
+                        <h3>
+                            ML Feature Importance
+                        </h3>
+
+                        <p class="panel-description">
+                            Relative contribution of each input feature
+                            to the trained sustainability prediction model.
+                        </p>
+
+                    </div>
+
+                </div>
+
+
+                <div
+                    id="featureImportance"
+                    class="feature-list"
+                >
+
+                    <div class="loading">
+                        Loading model insights...
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <!-- =============================================
+                 IMPROVEMENT AREAS
+            ============================================== -->
+
+            <div class="panel improvement-panel">
+
+                <div class="panel-header">
+
+                    <div>
+
+                        <span class="section-label">
+                            IMPROVEMENT OPPORTUNITIES
+                        </span>
+
+                        <h3>
+                            Recommended Improvement Areas
+                        </h3>
+
+                        <p class="panel-description">
+                            Suggestions generated from the observed
+                            campus resource and environmental patterns.
+                        </p>
+
+                    </div>
+
+                </div>
+
+
+                <div
+                    id="improvementAreas"
+                    class="improvement-grid"
+                >
+
+                    <div class="loading">
+                        Loading recommendations...
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <!-- =============================================
+                 BUILDING RECOMMENDATIONS
+            ============================================== -->
+
+            <div class="panel">
+
+                <div class="panel-header">
+
+                    <div>
+
+                        <span class="section-label">
+                            BUILDING-SPECIFIC INSIGHTS
+                        </span>
+
+                        <h3>
+                            Improvement Recommendations
+                        </h3>
+
+                    </div>
+
+                </div>
+
+
+                <div
+                    id="buildingRecommendations"
+                    class="recommendation-list"
+                >
+
+                    <div class="loading">
+                        Loading recommendations...
+                    </div>
+
+                </div>
+
+            </div>
+
+
+        </section>
+
+
+        <!-- =================================================
+             INDIVIDUAL ML PREDICTION
+        ================================================== -->
+
+        <section class="panel prediction-panel">
+
+            <div class="panel-header">
+
+                <div>
+
+                    <span class="section-label">
+                        ML PREDICTION
+                    </span>
+
+                    <h3>
+                        Predict Sustainability Score
+                    </h3>
+
+                    <p class="panel-description">
+                        Enter sensor conditions to estimate the
+                        sustainability score using the trained
+                        Random Forest model.
+                    </p>
+
+                </div>
+
+            </div>
+
+
+            <div class="prediction-form">
 
 
                 <div class="input-group">
 
                     <label>
-                        Energy Consumption
+                        Energy (kWh)
                     </label>
 
                     <input
+                        type="number"
                         id="p_energy"
-                        type="number"
+                        value="346.2"
                         step="0.01"
-                        value="475.94">
+                    >
 
                 </div>
 
@@ -348,14 +766,15 @@
                 <div class="input-group">
 
                     <label>
-                        Water Consumption
+                        Water (L)
                     </label>
 
                     <input
+                        type="number"
                         id="p_water"
-                        type="number"
+                        value="1355.85"
                         step="0.01"
-                        value="1645.61">
+                    >
 
                 </div>
 
@@ -363,14 +782,15 @@
                 <div class="input-group">
 
                     <label>
-                        Temperature
+                        Temperature (°C)
                     </label>
 
                     <input
+                        type="number"
                         id="p_temperature"
-                        type="number"
-                        step="0.01"
-                        value="25.5">
+                        value="25.5"
+                        step="0.1"
+                    >
 
                 </div>
 
@@ -378,14 +798,15 @@
                 <div class="input-group">
 
                     <label>
-                        Humidity
+                        Humidity (%)
                     </label>
 
                     <input
+                        type="number"
                         id="p_humidity"
-                        type="number"
-                        step="0.01"
-                        value="53.26">
+                        value="53.26"
+                        step="0.1"
+                    >
 
                 </div>
 
@@ -393,13 +814,15 @@
                 <div class="input-group">
 
                     <label>
-                        CO₂ Level
+                        CO₂ (ppm)
                     </label>
 
                     <input
-                        id="p_co2"
                         type="number"
-                        value="827">
+                        id="p_co2"
+                        value="639.65"
+                        step="1"
+                    >
 
                 </div>
 
@@ -411,9 +834,11 @@
                     </label>
 
                     <input
-                        id="p_occupancy"
                         type="number"
-                        value="154">
+                        id="p_occupancy"
+                        value="198"
+                        step="1"
+                    >
 
                 </div>
 
@@ -422,39 +847,58 @@
 
             <div class="prediction-action">
 
-                <button onclick="predictScore()">
-                    Predict Sustainability Score
+                <button
+                    onclick="predictScore()"
+                    class="predict-button"
+                >
+                    Run Prediction
                 </button>
 
-            </div>
 
-
-            <div
-                id="predictionResult"
-                class="prediction-result">
-
-                Enter the values above and run the model
-                to generate a prediction.
+                <div
+                    id="predictionResult"
+                    class="prediction-result"
+                >
+                    Enter conditions and run the model.
+                </div>
 
             </div>
 
         </section>
 
+
     </main>
 
 
-    <footer>
+    <!-- =====================================================
+         FOOTER
+    ====================================================== -->
 
-        <strong>Digital Twin Cloud Platform</strong>
+    <footer class="footer">
 
-        <span>•</span>
+        <div>
 
-        Smart Campus Sustainability Analytics
+            Digital Twin Cloud Platform for
+            Smart Campus Sustainability Analytics
+
+        </div>
+
+        <div>
+
+            AWS Cloud • Machine Learning • Digital Twin
+
+        </div>
 
     </footer>
 
 
-    <script src="script.js"></script>
+    <!-- =====================================================
+         JAVASCRIPT
+    ====================================================== -->
+
+    <script
+        src="script.js"
+    ></script>
 
 </body>
 
