@@ -3,6 +3,7 @@ from flask_cors import CORS
 import pandas as pd
 import numpy as np
 import os
+import json
 import joblib
 
 app = Flask(__name__)
@@ -209,8 +210,12 @@ def sensor_data():
 
     df = load_data()
 
-    return df.to_dict(
-        orient="records"
+    # Convert NaN / Infinity values to JSON-safe null values
+    return json.loads(
+        df.to_json(
+            orient="records",
+            date_format="iso"
+        )
     )
 
 
