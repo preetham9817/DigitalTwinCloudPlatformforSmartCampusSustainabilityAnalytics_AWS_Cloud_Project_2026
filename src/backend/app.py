@@ -6,8 +6,10 @@ import os
 import json
 import joblib
 
+
 app = Flask(__name__)
 CORS(app)
+
 
 # ============================================================
 # PATHS
@@ -27,6 +29,7 @@ MODEL_PATH = os.path.abspath(
     )
 )
 
+
 # ============================================================
 # LOAD ML MODEL
 # ============================================================
@@ -45,7 +48,8 @@ FEATURES = [
 
 # ============================================================
 # DATA LOADER
-# Automatically loads every CSV / Excel file in dataset/
+# Automatically loads building CSV / Excel files
+# combined_sensor_data.csv is excluded to avoid duplicates
 # ============================================================
 
 def load_data():
@@ -64,12 +68,16 @@ def load_data():
 
     files = os.listdir(DATASET_DIR)
 
+    # Load individual building datasets only.
+    # Do NOT load combined_sensor_data.csv because it
+    # contains copies of the same records.
     dataset_files = [
         file
         for file in files
         if file.lower().endswith(
             (".csv", ".xlsx", ".xls")
         )
+        and file.lower() != "combined_sensor_data.csv"
     ]
 
     print("\nFiles detected:")
@@ -88,6 +96,7 @@ def load_data():
 
             if file.lower().endswith(".csv"):
                 df = pd.read_csv(path)
+
             else:
                 df = pd.read_excel(path)
 
@@ -264,6 +273,34 @@ def analytics():
 
     df = load_data()
 
+    # --------------------------------------------------------
+    # Campus-wide daily aggregation
+    # --------------------------------------------------------
+    #
+    # Each date contains 4 building records.
+    # We first sum the four buildings for each day,
+    # then calculate the average daily campus value.
+    #
+    # Therefore:
+    #
+    # Energy     = campus-wide kWh/day
+    # Water      = campus-wide L/day
+    # Occupancy  = total people present across buildings
+    #
+    # Environmental values remain averages because they
+    # represent environmental conditions rather than
+    # additive resource consumption.
+    # --------------------------------------------------------
+
+    daily = (
+        df.groupby("Timestamp")
+        .agg({
+            "Energy_Consumption_kWh": "sum",
+            "Water_Consumption_L": "sum",
+            "Occupancy": "sum"
+        })
+    )
+
     return {
 
         "total_records":
@@ -272,45 +309,64 @@ def analytics():
         "total_datasets":
         df["Dataset_Source"].nunique(),
 
+        # Campus-wide average daily energy
         "average_energy":
         round(
-            df["Energy_Consumption_kWh"].mean(),
+            daily[
+                "Energy_Consumption_kWh"
+            ].mean(),
             2
         ),
 
+        # Campus-wide average daily water
         "average_water":
         round(
-            df["Water_Consumption_L"].mean(),
+            daily[
+                "Water_Consumption_L"
+            ].mean(),
             2
         ),
 
+        # Campus-wide average daily occupancy
         "average_occupancy":
         round(
-            df["Occupancy"].mean(),
+            daily[
+                "Occupancy"
+            ].mean(),
             2
         ),
 
+        # Environmental metrics
         "average_temperature":
         round(
-            df["Temperature_C"].mean(),
+            df[
+                "Temperature_C"
+            ].mean(),
             2
         ),
 
         "average_humidity":
         round(
-            df["Humidity_Percent"].mean(),
+            df[
+                "Humidity_Percent"
+            ].mean(),
             2
         ),
 
         "average_co2":
         round(
-            df["CO2_Level_ppm"].mean(),
+            df[
+                "CO2_Level_ppm"
+            ].mean(),
             2
         ),
 
+        # Sustainability score
         "average_sustainability_score":
         round(
-            df["Sustainability_Score"].mean(),
+            df[
+                "Sustainability_Score"
+            ].mean(),
             2
         )
     }
@@ -397,28 +453,52 @@ def predictive_analysis():
 
     df = load_data()
 
+    # --------------------------------------------------------
+    # Campus summary
+    # --------------------------------------------------------
+    #
+    # Keep these as dataset averages for predictive analysis.
+    # Building-level comparisons and recommendation logic
+    # depend on this same reference baseline.
+    # --------------------------------------------------------
+
     campus = {
         "energy":
-        df["Energy_Consumption_kWh"].mean(),
+        df[
+            "Energy_Consumption_kWh"
+        ].mean(),
 
         "water":
-        df["Water_Consumption_L"].mean(),
+        df[
+            "Water_Consumption_L"
+        ].mean(),
 
         "temperature":
-        df["Temperature_C"].mean(),
+        df[
+            "Temperature_C"
+        ].mean(),
 
         "humidity":
-        df["Humidity_Percent"].mean(),
+        df[
+            "Humidity_Percent"
+        ].mean(),
 
         "co2":
-        df["CO2_Level_ppm"].mean(),
+        df[
+            "CO2_Level_ppm"
+        ].mean(),
 
         "occupancy":
-        df["Occupancy"].mean(),
+        df[
+            "Occupancy"
+        ].mean(),
 
         "sustainability":
-        df["Sustainability_Score"].mean()
+        df[
+            "Sustainability_Score"
+        ].mean()
     }
+
 
     # --------------------------------------------------------
     # Building analysis
@@ -427,9 +507,11 @@ def predictive_analysis():
     building_column = None
 
     if "Building_Type" in df.columns:
+
         building_column = "Building_Type"
 
     elif "Building_ID" in df.columns:
+
         building_column = "Building_ID"
 
     building_analysis = []
@@ -440,7 +522,9 @@ def predictive_analysis():
             building_column
         )
 
-        campus_score = campus["sustainability"]
+        campus_score = campus[
+            "sustainability"
+        ]
 
         for building, group in grouped:
 
@@ -475,22 +559,40 @@ def predictive_analysis():
                 str(building),
 
                 "sustainability_score":
-                round(score, 2),
+                round(
+                    score,
+                    2
+                ),
 
                 "energy":
-                round(energy, 2),
+                round(
+                    energy,
+                    2
+                ),
 
                 "water":
-                round(water, 2),
+                round(
+                    water,
+                    2
+                ),
 
                 "co2":
-                round(co2, 2),
+                round(
+                    co2,
+                    2
+                ),
 
                 "occupancy":
-                round(occupancy, 2),
+                round(
+                    occupancy,
+                    2
+                ),
 
                 "score_difference":
-                round(score_difference, 2)
+                round(
+                    score_difference,
+                    2
+                )
             })
 
 
@@ -516,10 +618,13 @@ def predictive_analysis():
         campus["sustainability"] * 0.90
     )
 
+
     if campus["energy"] > 0:
 
         high_energy = df[
-            df["Energy_Consumption_kWh"]
+            df[
+                "Energy_Consumption_kWh"
+            ]
             > energy_threshold
         ]
 
@@ -544,7 +649,9 @@ def predictive_analysis():
     if campus["water"] > 0:
 
         high_water = df[
-            df["Water_Consumption_L"]
+            df[
+                "Water_Consumption_L"
+            ]
             > water_threshold
         ]
 
@@ -569,7 +676,9 @@ def predictive_analysis():
     if campus["co2"] > 0:
 
         high_co2 = df[
-            df["CO2_Level_ppm"]
+            df[
+                "CO2_Level_ppm"
+            ]
             > co2_threshold
         ]
 
@@ -592,7 +701,9 @@ def predictive_analysis():
 
 
     low_sustainability = df[
-        df["Sustainability_Score"]
+        df[
+            "Sustainability_Score"
+        ]
         < sustainability_threshold
     ]
 
@@ -624,25 +735,33 @@ def predictive_analysis():
 
         recommendations = []
 
-        if item["energy"] > campus["energy"] * 1.15:
+        if item["energy"] > (
+            campus["energy"] * 1.15
+        ):
 
             recommendations.append(
                 "Reduce energy consumption"
             )
 
-        if item["water"] > campus["water"] * 1.15:
+        if item["water"] > (
+            campus["water"] * 1.15
+        ):
 
             recommendations.append(
                 "Monitor water usage"
             )
 
-        if item["co2"] > campus["co2"] * 1.15:
+        if item["co2"] > (
+            campus["co2"] * 1.15
+        ):
 
             recommendations.append(
                 "Review ventilation conditions"
             )
 
-        if item["sustainability_score"] < sustainability_threshold:
+        if item[
+            "sustainability_score"
+        ] < sustainability_threshold:
 
             recommendations.append(
                 "Prioritize sustainability improvements"
@@ -674,11 +793,14 @@ def predictive_analysis():
 
             time_df["Timestamp"] = pd.to_datetime(
                 time_df["Timestamp"],
-                errors="coerce"
+                errors="coerce",
+                dayfirst=True
             )
 
             time_df = time_df.dropna(
-                subset=["Timestamp"]
+                subset=[
+                    "Timestamp"
+                ]
             )
 
             if len(time_df) >= 4:
@@ -687,7 +809,9 @@ def predictive_analysis():
                     "Timestamp"
                 )
 
-                midpoint = len(time_df) // 2
+                midpoint = len(
+                    time_df
+                ) // 2
 
                 first_half = time_df.iloc[
                     :midpoint
@@ -847,11 +971,13 @@ def predictive_analysis():
     return {
 
         "campus_summary": {
+
             key:
             round(
                 float(value),
                 2
             )
+
             for key, value
             in campus.items()
         },
@@ -889,35 +1015,53 @@ def predict():
     data = request.get_json()
 
     energy = float(
-        data["Energy_Consumption_kWh"]
+        data[
+            "Energy_Consumption_kWh"
+        ]
     )
 
     water = float(
-        data["Water_Consumption_L"]
+        data[
+            "Water_Consumption_L"
+        ]
     )
 
     temperature = float(
-        data["Temperature_C"]
+        data[
+            "Temperature_C"
+        ]
     )
 
     humidity = float(
-        data["Humidity_Percent"]
+        data[
+            "Humidity_Percent"
+        ]
     )
 
     co2 = float(
-        data["CO2_Level_ppm"]
+        data[
+            "CO2_Level_ppm"
+        ]
     )
 
     occupancy = int(
-        data["Occupancy"]
+        data[
+            "Occupancy"
+        ]
     )
 
     input_data = [[
+
         energy,
+
         water,
+
         temperature,
+
         humidity,
+
         co2,
+
         occupancy
     ]]
 
@@ -961,18 +1105,6 @@ if __name__ == "__main__":
 
     print(
         DATASET_DIR
-    )
-
-    print(
-        "\nBackend automatically reads:"
-    )
-
-    print(
-        "CSV files"
-    )
-
-    print(
-        "Excel files"
     )
 
     print(
