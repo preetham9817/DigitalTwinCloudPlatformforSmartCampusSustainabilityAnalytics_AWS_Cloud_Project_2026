@@ -10,14 +10,6 @@ import pandas as pd
 # CONFIGURATION
 # ============================================================
 
-# Generate August + September 2026
-#
-# August:
-# 01-08-2026 to 30-08-2026
-#
-# September:
-# 01-09-2026 to 30-09-2026
-
 START_DATE = "2026-08-01"
 END_DATE = "2026-09-30"
 
@@ -46,6 +38,13 @@ CONFIG_FILE = os.path.join(
     "building_config.json"
 )
 
+# Public UNICON-derived BSEI dataset
+PUBLIC_BSEI_DATASET = os.path.join(
+    BASE_DIR,
+    "public_dataset",
+    "public_bsei_dataset.csv"
+)
+
 os.makedirs(
     DATASET_DIR,
     exist_ok=True
@@ -65,11 +64,194 @@ with open(
 
 
 # ============================================================
-# MONTHLY CONDITIONS
+# LOAD EXACT UNICON BSEI REFERENCES
 # ============================================================
 
-# These values are synthetic project assumptions.
-# They are used to create realistic variation between months.
+print(
+    "\n=============================================="
+)
+
+print(
+    "LOADING UNICON BSEI REFERENCES"
+)
+
+print(
+    "=============================================="
+)
+
+if not os.path.exists(
+    PUBLIC_BSEI_DATASET
+):
+
+    raise FileNotFoundError(
+        "Public UNICON BSEI dataset not found:\n"
+        +
+        PUBLIC_BSEI_DATASET
+    )
+
+
+public_bsei_df = pd.read_csv(
+    PUBLIC_BSEI_DATASET
+)
+
+
+# ------------------------------------------------------------
+# Required columns
+# ------------------------------------------------------------
+
+required_bsei_columns = [
+    "energy_reference_kWh",
+    "water_reference_L",
+    "air_temperature",
+    "relative_humidity"
+]
+
+
+missing_columns = [
+    column
+    for column in required_bsei_columns
+    if column not in public_bsei_df.columns
+]
+
+
+if missing_columns:
+
+    raise ValueError(
+        "Missing required columns in public BSEI dataset: "
+        +
+        ", ".join(missing_columns)
+    )
+
+
+# ============================================================
+# EXACT REFERENCE VALUES USED BY PUBLIC BSEI
+# ============================================================
+
+ENERGY_REFERENCE = float(
+    public_bsei_df[
+        "energy_reference_kWh"
+    ].median()
+)
+
+
+WATER_REFERENCE = float(
+    public_bsei_df[
+        "water_reference_L"
+    ].median()
+)
+
+
+TEMPERATURE_REFERENCE = float(
+    public_bsei_df[
+        "air_temperature"
+    ].median()
+)
+
+
+HUMIDITY_REFERENCE = float(
+    public_bsei_df[
+        "relative_humidity"
+    ].median()
+)
+
+
+# ------------------------------------------------------------
+# Environmental normalization
+#
+# EXACTLY the same approach used in the public BSEI backend:
+# standard deviation of the public BSEI reference dataset.
+# ------------------------------------------------------------
+
+TEMPERATURE_STD = float(
+    public_bsei_df[
+        "air_temperature"
+    ].std()
+)
+
+
+HUMIDITY_STD = float(
+    public_bsei_df[
+        "relative_humidity"
+    ].std()
+)
+
+
+# Prevent division by zero
+TEMPERATURE_STD = max(
+    TEMPERATURE_STD,
+    1e-6
+)
+
+
+HUMIDITY_STD = max(
+    HUMIDITY_STD,
+    1e-6
+)
+
+
+print(
+    "BSEI energy reference:",
+    round(
+        ENERGY_REFERENCE,
+        4
+    )
+)
+
+
+print(
+    "BSEI water reference:",
+    round(
+        WATER_REFERENCE,
+        4
+    )
+)
+
+
+print(
+    "BSEI temperature reference:",
+    round(
+        TEMPERATURE_REFERENCE,
+        4
+    )
+)
+
+
+print(
+    "BSEI humidity reference:",
+    round(
+        HUMIDITY_REFERENCE,
+        4
+    )
+)
+
+
+print(
+    "BSEI temperature std:",
+    round(
+        TEMPERATURE_STD,
+        4
+    )
+)
+
+
+print(
+    "BSEI humidity std:",
+    round(
+        HUMIDITY_STD,
+        4
+    )
+)
+
+
+print(
+    "Public BSEI records:",
+    len(public_bsei_df)
+)
+
+
+# ============================================================
+# MONTHLY CONDITIONS
+# ============================================================
 
 MONTHLY_CONDITIONS = {
 
@@ -129,7 +311,7 @@ MONTHLY_CONDITIONS = {
         "water_factor": 1.08
     },
 
-    # AUGUST
+    # August
     8: {
         "occupancy_factor": 0.98,
         "temperature_offset": 0.0,
@@ -138,7 +320,7 @@ MONTHLY_CONDITIONS = {
         "water_factor": 1.06
     },
 
-    # SEPTEMBER
+    # September
     9: {
         "occupancy_factor": 1.00,
         "temperature_offset": -0.5,
@@ -216,7 +398,7 @@ def get_random_generator(
 
 
 # ============================================================
-# SUSTAINABILITY SCORE
+# EXISTING SYNTHETIC SUSTAINABILITY SCORE
 # ============================================================
 
 def calculate_sustainability_score(
@@ -323,24 +505,31 @@ def calculate_sustainability_score(
     )
 
     # --------------------------------------------------------
-    # FINAL SCORE
+    # FINAL SYNTHETIC SUSTAINABILITY SCORE
     # --------------------------------------------------------
 
     score = (
 
-        energy_score * 0.30 +
+        energy_score * 0.30
 
-        water_score * 0.20 +
+        +
 
-        co2_score * 0.20 +
+        water_score * 0.20
 
-        temperature_score * 0.15 +
+        +
+
+        co2_score * 0.20
+
+        +
+
+        temperature_score * 0.15
+
+        +
 
         humidity_score * 0.15
     )
 
     # Small natural variation
-
     score += np.random.normal(
         0,
         1.0
@@ -354,6 +543,136 @@ def calculate_sustainability_score(
 
     return round(
         float(score),
+        2
+    )
+
+
+# ============================================================
+# BSEI CALCULATION
+#
+# SAME METHODOLOGY AS PUBLIC UNICON BSEI
+# ============================================================
+
+def calculate_bsei(
+    energy,
+    water,
+    temperature,
+    humidity
+):
+
+    # --------------------------------------------------------
+    # RELATIVE ENERGY
+    # --------------------------------------------------------
+
+    relative_energy = (
+        energy
+        /
+        max(
+            ENERGY_REFERENCE,
+            1e-6
+        )
+    )
+
+    # --------------------------------------------------------
+    # RELATIVE WATER
+    # --------------------------------------------------------
+
+    relative_water = (
+        water
+        /
+        max(
+            WATER_REFERENCE,
+            1e-6
+        )
+    )
+
+    # --------------------------------------------------------
+    # ENERGY EFFICIENCY
+    # --------------------------------------------------------
+
+    energy_efficiency = np.exp(
+        -relative_energy
+    )
+
+    # --------------------------------------------------------
+    # WATER EFFICIENCY
+    # --------------------------------------------------------
+
+    water_efficiency = np.exp(
+        -relative_water
+    )
+
+    # --------------------------------------------------------
+    # ENVIRONMENTAL DEVIATION
+    # --------------------------------------------------------
+
+    environmental_deviation = np.sqrt(
+
+        (
+
+            (
+                temperature
+                -
+                TEMPERATURE_REFERENCE
+            )
+            /
+            TEMPERATURE_STD
+
+        ) ** 2
+
+        +
+
+        (
+
+            (
+                humidity
+                -
+                HUMIDITY_REFERENCE
+            )
+            /
+            HUMIDITY_STD
+
+        ) ** 2
+
+    )
+
+    # --------------------------------------------------------
+    # ENVIRONMENTAL EFFICIENCY
+    # --------------------------------------------------------
+
+    environmental_efficiency = np.exp(
+        -environmental_deviation
+    )
+
+    # --------------------------------------------------------
+    # FINAL BSEI
+    #
+    # Energy       = 40%
+    # Water        = 30%
+    # Environment  = 30%
+    # --------------------------------------------------------
+
+    bsei = 100 * (
+
+        energy_efficiency ** 0.40
+
+        *
+
+        water_efficiency ** 0.30
+
+        *
+
+        environmental_efficiency ** 0.30
+    )
+
+    return round(
+        float(
+            np.clip(
+                bsei,
+                0,
+                100
+            )
+        ),
         2
     )
 
@@ -382,7 +701,7 @@ def generate_building_data(
     for date in dates:
 
         # ----------------------------------------------------
-        # DATE INFORMATION
+        # DATE
         # ----------------------------------------------------
 
         month = date.month
@@ -415,13 +734,13 @@ def generate_building_data(
 
         occupancy = (
             base_occupancy
-            * conditions[
+            *
+            conditions[
                 "occupancy_factor"
             ]
         )
 
         # Weekend effect
-
         if is_weekend:
 
             weekend_factor = (
@@ -436,7 +755,6 @@ def generate_building_data(
             )
 
         # Daily variation
-
         occupancy += rng.normal(
             0,
             max(
@@ -562,9 +880,7 @@ def generate_building_data(
             ]
         )
 
-        # Higher temperature means
-        # slightly higher cooling demand.
-
+        # Temperature effect
         temperature_effect = max(
             temperature - 25,
             0
@@ -578,7 +894,6 @@ def generate_building_data(
         )
 
         # Daily variation
-
         energy += rng.normal(
             0,
             energy * 0.05
@@ -621,7 +936,7 @@ def generate_building_data(
         )
 
         # ----------------------------------------------------
-        # CO2 LEVEL
+        # CO2
         # ----------------------------------------------------
 
         co2 = (
@@ -641,8 +956,6 @@ def generate_building_data(
             ]
         )
 
-        # Slightly lower CO2 on weekends
-
         if is_weekend:
 
             co2 -= 15
@@ -659,16 +972,22 @@ def generate_building_data(
         )
 
         # ----------------------------------------------------
-        # SUSTAINABILITY SCORE
+        # EXISTING SYNTHETIC SUSTAINABILITY SCORE
         # ----------------------------------------------------
 
         sustainability_score = (
             calculate_sustainability_score(
+
                 energy,
+
                 water,
+
                 co2,
+
                 temperature,
+
                 humidity,
+
                 occupancy
             )
         )
@@ -679,61 +998,65 @@ def generate_building_data(
 
         data.append({
 
-            # Date format:
-            # 01-08-2026
-            # 02-08-2026
-            # ...
-            # 30-09-2026
+            "Timestamp":
+                date.strftime(
+                    "%d-%m-%Y"
+                ),
 
-            "Timestamp": date.strftime(
-                "%d-%m-%Y"
-            ),
+            "Building_ID":
+                building_name,
 
-            "Building_ID": building_name,
+            "Building_Type":
+                config[
+                    "building_type"
+                ],
 
-            "Building_Type": config[
-                "building_type"
-            ],
+            "Floor_Count":
+                config[
+                    "floor_count"
+                ],
 
-            "Floor_Count": config[
-                "floor_count"
-            ],
+            "Occupancy":
+                occupancy,
 
-            "Occupancy": occupancy,
+            "Occupancy_Per_Floor":
+                round(
+                    occupancy_per_floor,
+                    2
+                ),
 
-            "Occupancy_Per_Floor": round(
-                occupancy_per_floor,
-                2
-            ),
+            "Energy_Consumption_kWh":
+                round(
+                    energy,
+                    2
+                ),
 
-            "Energy_Consumption_kWh": round(
-                energy,
-                2
-            ),
+            "Water_Consumption_L":
+                round(
+                    water,
+                    2
+                ),
 
-            "Water_Consumption_L": round(
-                water,
-                2
-            ),
+            "Temperature_C":
+                round(
+                    temperature,
+                    2
+                ),
 
-            "Temperature_C": round(
-                temperature,
-                2
-            ),
+            "Humidity_Percent":
+                round(
+                    humidity,
+                    2
+                ),
 
-            "Humidity_Percent": round(
-                humidity,
-                2
-            ),
+            "CO2_Level_ppm":
+                round(
+                    co2,
+                    2
+                ),
 
-            "CO2_Level_ppm": round(
-                co2,
-                2
-            ),
-
-            "Sustainability_Score": (
+            "Sustainability_Score":
                 sustainability_score
-            )
         })
 
     return pd.DataFrame(
@@ -742,136 +1065,46 @@ def generate_building_data(
 
 
 # ============================================================
-# GENERATE / APPEND ALL BUILDINGS
+# GENERATE ALL BUILDINGS
 # ============================================================
 
 all_data = []
 
-for building_name, config in BUILDINGS.items():
+print(
+    "\n=============================================="
+)
 
-    # Generate new data for requested period
+print(
+    "GENERATING SYNTHETIC CAMPUS DATA"
+)
+
+print(
+    "=============================================="
+)
+
+print(
+    f"Period: {START_DATE} to {END_DATE}"
+)
+
+print(
+    f"Buildings: {len(BUILDINGS)}"
+)
+
+
+for building_name, config in BUILDINGS.items():
 
     new_df = generate_building_data(
         building_name,
         config
     )
 
-    filename = (
-        building_name.lower()
-        + "_building_sensor_data.csv"
-    )
-
-    filepath = os.path.join(
-        DATASET_DIR,
-        filename
-    )
-
-    # --------------------------------------------------------
-    # CHECK FOR EXISTING DATA
-    # --------------------------------------------------------
-
-    if os.path.exists(filepath):
-
-        try:
-
-            existing_df = pd.read_csv(
-                filepath
-            )
-
-            print(
-                f"Existing data found for "
-                f"{building_name}: "
-                f"{len(existing_df)} records"
-            )
-
-            # ------------------------------------------------
-            # Combine existing + new
-            # ------------------------------------------------
-
-            df = pd.concat(
-                [
-                    existing_df,
-                    new_df
-                ],
-                ignore_index=True
-            )
-
-            # ------------------------------------------------
-            # Remove duplicate date/building records
-            # ------------------------------------------------
-
-            df = df.drop_duplicates(
-                subset=[
-                    "Timestamp",
-                    "Building_ID"
-                ],
-                keep="first"
-            )
-
-            # ------------------------------------------------
-            # Sort by date
-            # ------------------------------------------------
-
-            df["_sort_date"] = (
-                pd.to_datetime(
-                    df["Timestamp"],
-                    format="%d-%m-%Y",
-                    errors="coerce"
-                )
-            )
-
-            df = df.sort_values(
-                "_sort_date"
-            )
-
-            df = df.drop(
-                columns=[
-                    "_sort_date"
-                ]
-            )
-
-            df = df.reset_index(
-                drop=True
-            )
-
-        except Exception as error:
-
-            print(
-                f"Could not read existing "
-                f"{filename}: {error}"
-            )
-
-            df = new_df
-
-    else:
-
-        df = new_df
-
-    # --------------------------------------------------------
-    # Save building dataset
-    # --------------------------------------------------------
-
-    df.to_csv(
-        filepath,
-        index=False
-    )
-
-    print(
-        f"Saved: {filename}"
-    )
-
-    print(
-        f"Total records for {building_name}: "
-        f"{len(df)}"
-    )
-
     all_data.append(
-        df
+        new_df
     )
 
 
 # ============================================================
-# CREATE COMBINED DATASET
+# COMBINE ALL BUILDINGS
 # ============================================================
 
 combined_df = pd.concat(
@@ -879,9 +1112,10 @@ combined_df = pd.concat(
     ignore_index=True
 )
 
-# ------------------------------------------------------------
-# Remove any duplicate records
-# ------------------------------------------------------------
+
+# ============================================================
+# REMOVE DUPLICATES
+# ============================================================
 
 combined_df = combined_df.drop_duplicates(
     subset=[
@@ -891,9 +1125,10 @@ combined_df = combined_df.drop_duplicates(
     keep="first"
 )
 
-# ------------------------------------------------------------
-# Sort by date and building
-# ------------------------------------------------------------
+
+# ============================================================
+# SORT DATA
+# ============================================================
 
 combined_df["_sort_date"] = (
     pd.to_datetime(
@@ -922,6 +1157,103 @@ combined_df = combined_df.reset_index(
 
 
 # ============================================================
+# CALCULATE BSEI
+#
+# SAME PUBLIC UNICON METHODOLOGY
+# ============================================================
+
+print(
+    "\n=============================================="
+)
+
+print(
+    "CALCULATING BSEI USING UNICON METHODOLOGY"
+)
+
+print(
+    "=============================================="
+)
+
+
+combined_df["BSEI"] = combined_df.apply(
+
+    lambda row: calculate_bsei(
+
+        row[
+            "Energy_Consumption_kWh"
+        ],
+
+        row[
+            "Water_Consumption_L"
+        ],
+
+        row[
+            "Temperature_C"
+        ],
+
+        row[
+            "Humidity_Percent"
+        ]
+
+    ),
+
+    axis=1
+)
+
+
+# ============================================================
+# SAVE INDIVIDUAL BUILDING DATASETS
+# ============================================================
+
+print(
+    "\n=============================================="
+)
+
+print(
+    "SAVING BUILDING DATASETS"
+)
+
+print(
+    "=============================================="
+)
+
+
+for building_name in BUILDINGS.keys():
+
+    filename = (
+        building_name.lower()
+        +
+        "_building_sensor_data.csv"
+    )
+
+    filepath = os.path.join(
+        DATASET_DIR,
+        filename
+    )
+
+    building_df = combined_df[
+        combined_df[
+            "Building_ID"
+        ]
+        ==
+        building_name
+    ].copy()
+
+    building_df.to_csv(
+        filepath,
+        index=False
+    )
+
+    print(
+        f"Saved: {filename}"
+    )
+
+    print(
+        f"Records: {len(building_df)}"
+    )
+
+
+# ============================================================
 # SAVE COMBINED DATASET
 # ============================================================
 
@@ -937,7 +1269,7 @@ combined_df.to_csv(
 
 
 # ============================================================
-# SUMMARY
+# FINAL DATASET SUMMARY
 # ============================================================
 
 date_range = pd.date_range(
@@ -1002,7 +1334,7 @@ print(
 
 
 # ============================================================
-# BUILDING AVERAGES
+# AVERAGE BUILDING METRICS
 # ============================================================
 
 print(
@@ -1029,7 +1361,8 @@ summary = combined_df.groupby(
         "Temperature_C",
         "Humidity_Percent",
         "CO2_Level_ppm",
-        "Sustainability_Score"
+        "Sustainability_Score",
+        "BSEI"
     ]
 ].mean()
 
@@ -1064,7 +1397,9 @@ monthly_df["Date"] = pd.to_datetime(
 monthly_df["Month"] = (
     monthly_df[
         "Date"
-    ].dt.strftime("%B")
+    ].dt.strftime(
+        "%B"
+    )
 )
 
 monthly_summary = (
@@ -1075,7 +1410,8 @@ monthly_summary = (
             "Energy_Consumption_kWh",
             "Water_Consumption_L",
             "CO2_Level_ppm",
-            "Sustainability_Score"
+            "Sustainability_Score",
+            "BSEI"
         ]
     ]
     .mean()
@@ -1083,6 +1419,80 @@ monthly_summary = (
 
 print(
     monthly_summary.round(2)
+)
+
+
+# ============================================================
+# BSEI SUMMARY
+# ============================================================
+
+print(
+    "\n=============================================="
+)
+
+print(
+    "BSEI SUMMARY"
+)
+
+print(
+    "=============================================="
+)
+
+print(
+    f"Mean BSEI: "
+    f"{combined_df['BSEI'].mean():.2f}"
+)
+
+print(
+    f"Minimum BSEI: "
+    f"{combined_df['BSEI'].min():.2f}"
+)
+
+print(
+    f"Maximum BSEI: "
+    f"{combined_df['BSEI'].max():.2f}"
+)
+
+print(
+    f"Median BSEI: "
+    f"{combined_df['BSEI'].median():.2f}"
+)
+
+
+# ============================================================
+# BSEI BY BUILDING
+# ============================================================
+
+print(
+    "\n=============================================="
+)
+
+print(
+    "BSEI BY BUILDING"
+)
+
+print(
+    "=============================================="
+)
+
+bsei_building_summary = (
+    combined_df.groupby(
+        "Building_ID"
+    )[
+        "BSEI"
+    ]
+    .agg(
+        [
+            "mean",
+            "min",
+            "max"
+        ]
+    )
+    .round(2)
+)
+
+print(
+    bsei_building_summary
 )
 
 
@@ -1103,7 +1513,9 @@ print(
 )
 
 print(
-    combined_df.head(10).to_string(
+    combined_df.head(
+        10
+    ).to_string(
         index=False
     )
 )
@@ -1126,7 +1538,9 @@ print(
 )
 
 print(
-    combined_df.tail(10).to_string(
+    combined_df.tail(
+        10
+    ).to_string(
         index=False
     )
 )
@@ -1156,7 +1570,7 @@ for column in combined_df.columns:
 
 
 # ============================================================
-# FILE LOCATION
+# FILE LOCATIONS
 # ============================================================
 
 print(
@@ -1172,7 +1586,7 @@ print(
 )
 
 print(
-    f"Dataset folder:"
+    "Dataset folder:"
 )
 
 print(
@@ -1186,6 +1600,39 @@ print(
 print(
     combined_file
 )
+
+
+print(
+    "\n=============================================="
+)
+
+print(
+    "BSEI METHODOLOGY"
+)
+
+print(
+    "=============================================="
+)
+
+print(
+    "Energy efficiency: 40%"
+)
+
+print(
+    "Water efficiency: 30%"
+)
+
+print(
+    "Environmental efficiency: 30%"
+)
+
+print(
+    "BSEI = 100 × "
+    "(Energy Efficiency^0.40) × "
+    "(Water Efficiency^0.30) × "
+    "(Environmental Efficiency^0.30)"
+)
+
 
 print(
     "\nDataset generation finished successfully."

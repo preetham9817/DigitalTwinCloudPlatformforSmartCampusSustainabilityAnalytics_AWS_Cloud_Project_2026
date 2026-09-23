@@ -1,1216 +1,478 @@
-const API_URL = "http://127.0.0.1:5000";
+/* =========================================================
+   DIGITAL TWIN CAMPUS
+   AUTOMATIC BUILDING SYSTEM
+========================================================= */
 
-let energyChart = null;
-
-let digitalTwinBuildings = [];
-let digitalTwinRecommendations = [];
-
-
-// ============================================================
-// LOAD DASHBOARD
-// ============================================================
-
-async function loadDashboard() {
-
-    try {
-
-        const response =
-            await fetch(`${API_URL}/api/analytics`);
-
-        if (!response.ok) {
-            throw new Error("Analytics request failed");
-        }
-
-        const data =
-            await response.json();
+const API_BASE_URL = "http://127.0.0.1:5000";
 
 
-        document.getElementById("energy").textContent =
-            Number(data.average_energy).toFixed(2);
+let buildingData = [];
+let energyTrendData = [];
 
-        document.getElementById("water").textContent =
-            Number(data.average_water).toFixed(2);
+let energyChartInstance = null;
+let buildingChartInstance = null;
 
-        document.getElementById("occupancy").textContent =
-            Number(data.average_occupancy).toFixed(2);
-
-        document.getElementById("sustainability").textContent =
-            Number(data.average_sustainability_score).toFixed(2);
-
-        document.getElementById("temperature").textContent =
-            Number(data.average_temperature).toFixed(2);
-
-        document.getElementById("humidity").textContent =
-            Number(data.average_humidity).toFixed(2);
-
-        document.getElementById("co2").textContent =
-            Number(data.average_co2).toFixed(2);
-
-        document.getElementById("records").textContent =
-            data.total_records;
+let selectedBuilding = null;
 
 
+/* =========================================================
+   BUILDING CONFIGURATION
+========================================================= */
+
+const buildingConfig = {
+
+    Academic: {
+        floors: 8,
+        type: "Academic Building"
+    },
+
+    Main: {
+        floors: 5,
+        type: "Main Building"
+    },
+
+    Hostel: {
+        floors: 10,
+        type: "Hostel Building"
+    },
+
+    Placement: {
+        floors: 4,
+        type: "Placement Building"
     }
 
-    catch (error) {
+};
 
-        console.error(
-            "Error loading dashboard:",
-            error
-        );
+
+/* =========================================================
+   DOM HELPERS
+========================================================= */
+
+function getElement(id) {
+
+    return document.getElementById(id);
+
+}
+
+
+function setText(id, value) {
+
+    const element = getElement(id);
+
+    if (element) {
+
+        element.textContent = value;
 
     }
 
 }
 
 
-// ============================================================
-// BUILDING SUSTAINABILITY
-// ============================================================
+/* =========================================================
+   FORMAT
+========================================================= */
 
-async function loadBuildingScores() {
+function formatNumber(value, decimals = 2) {
 
-    try {
+    if (
+        value === null ||
+        value === undefined ||
+        value === "" ||
+        Number.isNaN(Number(value))
+    ) {
 
-        /*
-            We use predictive-analysis here because it already
-            contains the average sustainability score for every
-            building.
-        */
+        return "--";
 
-        const response =
-            await fetch(
-                `${API_URL}/api/predictive-analysis`
-            );
+    }
 
-        if (!response.ok) {
-
-            throw new Error(
-                "Building analysis request failed"
-            );
-
+    return Number(value).toLocaleString(
+        "en-IN",
+        {
+            minimumFractionDigits: decimals,
+            maximumFractionDigits: decimals
         }
+    );
 
-        const data =
-            await response.json();
-
-
-        const container =
-            document.getElementById(
-                "buildingScores"
-            );
+}
 
 
-        if (!container) {
+/* =========================================================
+   ESCAPE HTML
+========================================================= */
 
-            console.error(
-                "buildingScores element not found"
-            );
+function escapeHTML(value) {
 
-            return;
+    return String(value ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
 
-        }
-
-
-        container.innerHTML = "";
-
-
-        const buildings =
-            data.building_analysis || [];
+}
 
 
-        if (buildings.length === 0) {
+/* =========================================================
+   FETCH
+========================================================= */
 
-            container.innerHTML = `
-                <div class="no-data">
-                    No building data available.
-                </div>
-            `;
+async function fetchJSON(
+    endpoint,
+    options = {}
+) {
 
-            return;
+    const response = await fetch(
+        `${API_BASE_URL}${endpoint}`,
+        {
+            ...options,
 
-        }
-
-
-        const buildingOrder = [
-            "Academic",
-            "Main",
-            "Hostel",
-            "Placement"
-        ];
-
-
-        buildings.sort(
-            (a, b) =>
-                buildingOrder.indexOf(a.building) -
-                buildingOrder.indexOf(b.building)
-        );
-
-
-        buildings.forEach(
-            building => {
-
-                const score =
-                    Number(
-                        building.sustainability_score
-                    );
-
-
-                const item =
-                    document.createElement(
-                        "div"
-                    );
-
-
-                item.className =
-                    "building-item";
-
-
-                item.innerHTML = `
-
-                    <div class="building-header">
-
-                        <span class="building-name">
-                            ${building.building}
-                        </span>
-
-                        <span class="building-score">
-                            ${score.toFixed(2)}
-                        </span>
-
-                    </div>
-
-
-                    <div class="progress">
-
-                        <div
-                            class="progress-bar"
-                            style="width: ${Math.min(score, 100)}%"
-                        ></div>
-
-                    </div>
-
-                `;
-
-
-                container.appendChild(
-                    item
-                );
-
+            headers: {
+                "Content-Type": "application/json",
+                ...(options.headers || {})
             }
-        );
-
-    }
-
-    catch (error) {
-
-        console.error(
-            "Error loading building data:",
-            error
-        );
-
-
-        const container =
-            document.getElementById(
-                "buildingScores"
-            );
-
-
-        if (container) {
-
-            container.innerHTML = `
-
-                <div class="no-data error-message">
-
-                    Unable to load building data.
-
-                    <br><br>
-
-                    Make sure the Flask backend
-                    is running on port 5000.
-
-                </div>
-
-            `;
-
         }
+    );
+
+
+    let data;
+
+    try {
+
+        data = await response.json();
+
+    } catch {
+
+        throw new Error(
+            `Invalid response from ${endpoint}`
+        );
 
     }
+
+
+    if (!response.ok) {
+
+        throw new Error(
+            data.error ||
+            `Request failed: ${response.status}`
+        );
+
+    }
+
+
+    return data;
 
 }
 
 
-// ============================================================
-// ENERGY CHART
-// ============================================================
+/* =========================================================
+   INITIALIZE
+========================================================= */
 
-async function loadEnergyChart() {
+document.addEventListener(
+    "DOMContentLoaded",
+    () => {
+
+        initializeDashboard();
+
+        setupPredictionForm();
+
+    }
+);
+
+
+async function initializeDashboard() {
 
     try {
 
-        const response =
-            await fetch(
-                `${API_URL}/api/sensor-data`
-            );
+        await loadAnalytics();
 
-
-        if (!response.ok) {
-
-            throw new Error(
-                "Sensor data request failed"
-            );
-
-        }
-
-
-        const data =
-            await response.json();
-
-
-        if (
-            !Array.isArray(data) ||
-            data.length === 0
-        ) {
-
-            console.error(
-                "No sensor data available"
-            );
-
-            return;
-
-        }
-
-
-        /*
-            Create campus-wide daily energy totals.
-
-            Each date has 4 building records:
-
-            Academic
-            Hostel
-            Main
-            Placement
-
-            We add them together to get one campus value
-            for each date.
-        */
-
-        const dailyEnergy = {};
-
-
-        data.forEach(
-            item => {
-
-                const date =
-                    item.Timestamp;
-
-
-                const energy =
-                    Number(
-                        item.Energy_Consumption_kWh
-                    );
-
-
-                if (
-                    !date ||
-                    Number.isNaN(energy)
-                ) {
-
-                    return;
-
-                }
-
-
-                if (
-                    !dailyEnergy[date]
-                ) {
-
-                    dailyEnergy[date] = 0;
-
-                }
-
-
-                dailyEnergy[date] +=
-                    energy;
-
-            }
-        );
-
-
-        /*
-            Sort DD-MM-YYYY dates properly.
-        */
-
-        const sortedDates =
-            Object.keys(
-                dailyEnergy
-            ).sort(
-                (a, b) => {
-
-                    const [
-                        dayA,
-                        monthA,
-                        yearA
-                    ] =
-                        a.split("-")
-                         .map(Number);
-
-
-                    const [
-                        dayB,
-                        monthB,
-                        yearB
-                    ] =
-                        b.split("-")
-                         .map(Number);
-
-
-                    return new Date(
-                        yearA,
-                        monthA - 1,
-                        dayA
-                    ) -
-                    new Date(
-                        yearB,
-                        monthB - 1,
-                        dayB
-                    );
-
-                }
-            );
-
-
-        const energyValues =
-            sortedDates.map(
-                date =>
-                    Number(
-                        dailyEnergy[
-                            date
-                        ].toFixed(2)
-                    )
-            );
-
-
-        const canvas =
-            document.getElementById(
-                "energyChart"
-            );
-
-
-        const wrapper =
-            document.getElementById(
-                "energyChartWrapper"
-            );
-
-
-        if (!canvas) {
-
-            console.error(
-                "energyChart canvas not found"
-            );
-
-            return;
-
-        }
-
-
-        /*
-            Destroy old chart.
-        */
-
-        if (energyChart) {
-
-            energyChart.destroy();
-
-        }
-
-
-        /*
-            Make the canvas wider than the visible
-            panel.
-
-            One date gets approximately 55px.
-
-            Minimum width = 1200px.
-        */
-
-        const chartWidth =
-            Math.max(
-                1200,
-                sortedDates.length * 55
-            );
-
-
-        canvas.width =
-            chartWidth;
-
-
-        canvas.height =
-            340;
-
-
-        canvas.style.width =
-            `${chartWidth}px`;
-
-
-        canvas.style.height =
-            "340px";
-
-
-        /*
-            Create chart.
-        */
-
-        energyChart =
-            new Chart(
-                canvas,
-                {
-
-                    type: "line",
-
-
-                    data: {
-
-                        labels:
-                            sortedDates,
-
-                        datasets: [
-
-                            {
-
-                                label:
-                                    "Campus Energy Consumption",
-
-                                data:
-                                    energyValues,
-
-                                borderColor:
-                                    "#4f9cff",
-
-                                backgroundColor:
-                                    "rgba(79, 156, 255, 0.08)",
-
-                                borderWidth:
-                                    2,
-
-                                fill:
-                                    true,
-
-                                tension:
-                                    0.35,
-
-                                pointRadius:
-                                    2,
-
-                                pointHoverRadius:
-                                    5
-
-                            }
-
-                        ]
-
-                    },
-
-
-                    options: {
-
-                        responsive:
-                            false,
-
-                        maintainAspectRatio:
-                            false,
-
-
-                        interaction: {
-
-                            intersect:
-                                false,
-
-                            mode:
-                                "index"
-
-                        },
-
-
-                        plugins: {
-
-                            legend: {
-
-                                display:
-                                    false
-
-                            },
-
-
-                            tooltip: {
-
-                                callbacks: {
-
-                                    label:
-                                        function(context) {
-
-                                            return (
-                                                " Energy: " +
-                                                Number(
-                                                    context.raw
-                                                ).toLocaleString(
-                                                    undefined,
-                                                    {
-                                                        maximumFractionDigits: 2
-                                                    }
-                                                ) +
-                                                " kWh"
-                                            );
-
-                                        }
-
-                                }
-
-                            }
-
-                        },
-
-
-                        scales: {
-
-                            x: {
-
-                                grid: {
-
-                                    display:
-                                        false
-
-                                },
-
-
-                                ticks: {
-
-                                    color:
-                                        "#718096",
-
-                                    maxTicksLimit:
-                                        12,
-
-                                    autoSkip:
-                                        true,
-
-                                    maxRotation:
-                                        0,
-
-                                    minRotation:
-                                        0
-
-                                }
-
-                            },
-
-
-                            y: {
-
-                                beginAtZero:
-                                    false,
-
-
-                                grid: {
-
-                                    color:
-                                        "rgba(255,255,255,0.05)"
-
-                                },
-
-
-                                ticks: {
-
-                                    color:
-                                        "#718096",
-
-                                    callback:
-                                        function(value) {
-
-                                            return (
-                                                Number(
-                                                    value
-                                                ).toLocaleString() +
-                                                " kWh"
-                                            );
-
-                                        }
-
-                                }
-
-                            }
-
-                        }
-
-                    }
-
-                }
-            );
-
-
-        /*
-            Make sure wrapper scrolls to the beginning.
-        */
-
-        if (wrapper) {
-
-            wrapper.scrollLeft = 0;
-
-        }
-
-    }
-
-    catch (error) {
+    } catch (error) {
 
         console.error(
-            "Error loading energy chart:",
+            "Analytics error:",
             error
         );
 
     }
 
-}
-
-
-// ============================================================
-// PREDICTIVE ANALYSIS
-// ============================================================
-
-async function loadPredictiveAnalysis() {
 
     try {
 
-        const response =
-            await fetch(
-                `${API_URL}/api/predictive-analysis`
-            );
+        await loadSustainability();
 
+    } catch (error) {
 
-        if (!response.ok) {
-
-            throw new Error(
-                "Predictive analysis request failed"
-            );
-
-        }
-
-
-        const data =
-            await response.json();
-
-
-        renderAttentionAreas(
-            data.attention_areas
+        console.error(
+            "Sustainability error:",
+            error
         );
 
+        generateFallbackInsights();
 
-        renderPredictiveBuildings(
-            data.building_analysis
-        );
-
-
-        renderTrends(
-            data.trend_analysis
-        );
+    }
 
 
-        renderFeatureImportance(
-            data.feature_importance
-        );
+    try {
 
+        await loadEnergyTrend();
 
-        renderImprovementAreas(
-            data.improvement_areas
-        );
+    } catch (error) {
 
-
-        renderBuildingRecommendations(
-            data.building_recommendations
+        console.error(
+            "Energy trend error:",
+            error
         );
 
     }
 
-    catch (error) {
+
+    try {
+
+        await loadPredictiveAnalysis();
+
+    } catch (error) {
 
         console.error(
             "Predictive analysis error:",
             error
         );
 
-
-        showPredictiveError();
+        generateFallbackInsights();
 
     }
 
 }
 
 
-// ============================================================
-// ATTENTION AREAS
-// ============================================================
+/* =========================================================
+   ANALYTICS
+========================================================= */
 
-function renderAttentionAreas(
-    areas
-) {
+async function loadAnalytics() {
 
-    const container =
-        document.getElementById(
-            "attentionAreas"
+    const data =
+        await fetchJSON(
+            "/api/analytics"
         );
 
 
-    if (!container) {
-        return;
-    }
+    setText(
+        "energy",
+        formatNumber(
+            data.energyConsumption
+        )
+    );
 
 
-    container.innerHTML = "";
+    setText(
+        "water",
+        formatNumber(
+            data.waterConsumption
+        )
+    );
 
 
-    if (
-        !areas ||
-        areas.length === 0
-    ) {
-
-        container.innerHTML = `
-
-            <div class="no-data">
-
-                No major attention areas
-                detected from the current dataset.
-
-            </div>
-
-        `;
-
-        return;
-
-    }
+    setText(
+        "occupancy",
+        formatNumber(
+            data.occupancy
+        )
+    );
 
 
-    areas.forEach(
-        area => {
-
-            const card =
-                document.createElement(
-                    "div"
-                );
-
-
-            card.className =
-                "attention-card";
+    setText(
+        "sustainability",
+        formatNumber(
+            data.bsei
+        )
+    );
 
 
-            let icon =
-                "⚠";
+    setText(
+        "temperature",
+        formatNumber(
+            data.temperature
+        )
+    );
 
 
-            if (
-                area.area.includes(
-                    "Energy"
-                )
-            ) {
-
-                icon =
-                    "⚡";
-
-            }
-
-            else if (
-                area.area.includes(
-                    "Water"
-                )
-            ) {
-
-                icon =
-                    "💧";
-
-            }
-
-            else if (
-                area.area.includes(
-                    "CO"
-                )
-            ) {
-
-                icon =
-                    "🌫";
-
-            }
-
-            else if (
-                area.area.includes(
-                    "Sustainability"
-                )
-            ) {
-
-                icon =
-                    "🌱";
-
-            }
+    setText(
+        "humidity",
+        formatNumber(
+            data.humidity
+        )
+    );
 
 
-            card.innerHTML = `
-
-                <div class="attention-icon">
-
-                    ${icon}
-
-                </div>
-
-
-                <div class="attention-content">
-
-                    <div
-                        class="attention-title-row"
-                    >
-
-                        <h4>
-                            ${area.area}
-                        </h4>
-
-                        <span
-                            class="severity ${getSeverityClass(area.severity)}"
-                        >
-                            ${area.severity}
-                        </span>
-
-                    </div>
-
-
-                    <p>
-                        ${area.description}
-                    </p>
-
-
-                    <div
-                        class="recommendation-text"
-                    >
-
-                        <strong>
-                            Suggested action:
-                        </strong>
-
-                        ${area.recommendation}
-
-                    </div>
-
-                </div>
-
-            `;
-
-
-            container.appendChild(
-                card
-            );
-
-        }
+    setText(
+        "co2",
+        formatNumber(
+            data.co2
+        )
     );
 
 }
 
 
-// ============================================================
-// SEVERITY
-// ============================================================
+/* =========================================================
+   SUSTAINABILITY
+========================================================= */
 
-function getSeverityClass(
-    severity
-) {
+async function loadSustainability() {
 
-    if (!severity) {
+    const data =
+        await fetchJSON(
+            "/api/sustainability"
+        );
 
-        return "severity-monitor";
+
+    if (
+        !data ||
+        !Array.isArray(data.buildings)
+    ) {
+
+        throw new Error(
+            "Building data unavailable"
+        );
 
     }
 
+
+    buildingData =
+        data.buildings;
+
+
+    renderBuildingTabs();
+
+    updateDigitalTwin();
+
+    renderBuildingChart();
+
+    generateFallbackInsights();
+
+}
+
+
+/* =========================================================
+   BUILDING NAME
+========================================================= */
+
+function formatBuildingName(id) {
 
     const value =
-        severity.toLowerCase();
+        String(id || "").trim();
 
 
-    if (
-        value === "high"
-    ) {
+    if (!value) {
 
-        return "severity-high";
+        return "Unknown Building";
 
     }
 
 
-    if (
-        value === "attention"
-    ) {
-
-        return "severity-attention";
-
-    }
-
-
-    return "severity-monitor";
+    return value
+        .replace(/[_-]+/g, " ")
+        .replace(/\s+/g, " ")
+        .replace(/\b\w/g, char =>
+            char.toUpperCase()
+        );
 
 }
 
 
-// ============================================================
-// PREDICTIVE BUILDINGS
-// ============================================================
+/* =========================================================
+   BUILDING CONFIG
+========================================================= */
 
-function renderPredictiveBuildings(
-    buildings
-) {
+function getBuildingConfig(name) {
 
-    const container =
-        document.getElementById(
-            "predictiveBuildings"
-        );
-
-
-    if (!container) {
-        return;
-    }
+    const key =
+        Object.keys(buildingConfig)
+            .find(
+                item =>
+                    item.toLowerCase() ===
+                    String(name).toLowerCase()
+            );
 
 
-    container.innerHTML = "";
+    if (key) {
 
-
-    if (
-        !buildings ||
-        buildings.length === 0
-    ) {
-
-        container.innerHTML = `
-
-            <div class="no-data">
-
-                No building analysis available.
-
-            </div>
-
-        `;
-
-        return;
+        return buildingConfig[key];
 
     }
 
 
-    buildings.forEach(
+    return {
+
+        floors: "--",
+
+        type:
+            `${formatBuildingName(name)} Building`
+
+    };
+
+}
+
+
+/* =========================================================
+   FIND BUILDING
+========================================================= */
+
+function findBuilding(name) {
+
+    if (!Array.isArray(buildingData)) {
+
+        return null;
+
+    }
+
+
+    return buildingData.find(
         building => {
 
-            const card =
-                document.createElement(
-                    "div"
-                );
+            const id =
+                String(
+                    building.Building_ID || ""
+                ).toLowerCase();
 
 
-            card.className =
-                "predictive-building";
-
-
-            const score =
-                Number(
-                    building.sustainability_score
-                );
-
-
-            let scoreClass =
-                "score-good";
-
-
-            if (
-                score < 70
-            ) {
-
-                scoreClass =
-                    "score-low";
-
-            }
-
-            else if (
-                score < 80
-            ) {
-
-                scoreClass =
-                    "score-medium";
-
-            }
-
-
-            const difference =
-                Number(
-                    building.score_difference
-                );
-
-
-            const differenceText =
-                difference >= 0
-                    ? `+${difference.toFixed(2)}`
-                    : difference.toFixed(2);
-
-
-            const differenceClass =
-                difference >= 0
-                    ? "difference-positive"
-                    : "difference-negative";
-
-
-            card.innerHTML = `
-
-                <div
-                    class="predictive-building-header"
-                >
-
-                    <div>
-
-                        <h4>
-                            ${building.building}
-                        </h4>
-
-                        <span>
-                            Sustainability Score
-                        </span>
-
-                    </div>
-
-
-                    <strong
-                        class="${scoreClass}"
-                    >
-                        ${score.toFixed(2)}
-                    </strong>
-
-                </div>
-
-
-                <div
-                    class="building-score-track"
-                >
-
-                    <div
-                        class="building-score-fill"
-                        style="
-                            width:
-                            ${Math.min(score, 100)}%
-                        "
-                    ></div>
-
-                </div>
-
-
-                <div
-                    class="building-metrics"
-                >
-
-                    <div>
-
-                        <span>
-                            Energy
-                        </span>
-
-                        <strong>
-                            ${Number(
-                                building.energy
-                            ).toFixed(2)}
-                        </strong>
-
-                    </div>
-
-
-                    <div>
-
-                        <span>
-                            Water
-                        </span>
-
-                        <strong>
-                            ${Number(
-                                building.water
-                            ).toFixed(2)}
-                        </strong>
-
-                    </div>
-
-
-                    <div>
-
-                        <span>
-                            CO₂
-                        </span>
-
-                        <strong>
-                            ${Number(
-                                building.co2
-                            ).toFixed(2)}
-                        </strong>
-
-                    </div>
-
-
-                    <div>
-
-                        <span>
-                            Campus Difference
-                        </span>
-
-                        <strong
-                            class="${differenceClass}"
-                        >
-                            ${differenceText}
-                        </strong>
-
-                    </div>
-
-                </div>
-
-            `;
-
-
-            container.appendChild(
-                card
+            return (
+                id ===
+                String(name).toLowerCase()
             );
 
         }
-    );
+    ) || null;
 
 }
 
 
-// ============================================================
-// TREND ANALYSIS
-// ============================================================
+/* =========================================================
+   RENDER BUILDING TABS
+========================================================= */
 
-function renderTrends(
-    trends
-) {
+function renderBuildingTabs() {
 
     const container =
-        document.getElementById(
-            "trendAnalysis"
-        );
+        getElement("buildingTabs");
 
 
     if (!container) {
+
         return;
+
     }
 
 
     container.innerHTML = "";
 
 
-    if (
-        !trends ||
-        Object.keys(trends).length === 0
-    ) {
+    if (!buildingData.length) {
 
         container.innerHTML = `
-
-            <div class="no-data">
-
-                Historical trend data
-                is not available.
-
+            <div class="no-buildings">
+                No building data available.
             </div>
-
         `;
 
         return;
@@ -1218,362 +480,907 @@ function renderTrends(
     }
 
 
-    const labels = {
+    buildingData.forEach(
+        (building, index) => {
 
-        energy:
-            "Energy",
-
-        water:
-            "Water",
-
-        co2:
-            "CO₂",
-
-        sustainability:
-            "Sustainability"
-
-    };
+            const name =
+                String(
+                    building.Building_ID ||
+                    `Building ${index + 1}`
+                );
 
 
-    const icons = {
-
-        energy:
-            "⚡",
-
-        water:
-            "💧",
-
-        co2:
-            "🌫",
-
-        sustainability:
-            "🌱"
-
-    };
+            const displayName =
+                formatBuildingName(name);
 
 
-    for (
-        const key in trends
-    ) {
-
-        const item =
-            trends[key];
+            const config =
+                getBuildingConfig(name);
 
 
-        const card =
-            document.createElement(
-                "div"
-            );
+            const button =
+                document.createElement("button");
 
 
-        card.className =
-            "trend-card";
+            button.type = "button";
+
+            button.className =
+                "building-card";
 
 
-        const percentage =
-            Number(
-                item.percentage_change
-            );
+            button.dataset.building =
+                name;
 
 
-        let directionClass =
-            "trend-stable";
+            button.innerHTML = `
 
+                <span class="building-label">
 
-        let arrow =
-            "→";
+                    ${escapeHTML(
+                        getBuildingLabel(name)
+                    )}
 
-
-        if (
-            item.direction ===
-            "Increasing"
-        ) {
-
-            directionClass =
-                "trend-increasing";
-
-            arrow =
-                "↗";
-
-        }
-
-        else if (
-            item.direction ===
-            "Decreasing"
-        ) {
-
-            directionClass =
-                "trend-decreasing";
-
-            arrow =
-                "↘";
-
-        }
-
-
-        card.innerHTML = `
-
-            <div class="trend-icon">
-
-                ${icons[key] || "•"}
-
-            </div>
-
-
-            <div class="trend-info">
-
-                <span>
-                    ${labels[key] || key}
                 </span>
 
-                <strong
-                    class="${directionClass}"
-                >
+                <h3>
+                    ${escapeHTML(
+                        config.type ||
+                        `${displayName} Building`
+                    )}
+                </h3>
 
-                    ${arrow}
-                    ${item.direction}
+                <span class="building-score-label">
+                    BSEI
+                </span>
 
+                <strong>
+                    ${formatNumber(
+                        building.BSEI
+                    )}
                 </strong>
 
-                <small>
-
-                    ${percentage >= 0 ? "+" : ""}
-                    ${percentage.toFixed(2)}%
-
-                    historical change
-
-                </small>
-
-            </div>
-
-        `;
-
-
-        container.appendChild(
-            card
-        );
-
-    }
-
-}
-
-
-// ============================================================
-// FEATURE IMPORTANCE
-// ============================================================
-
-function renderFeatureImportance(
-    features
-) {
-
-    const container =
-        document.getElementById(
-            "featureImportance"
-        );
-
-
-    if (!container) {
-        return;
-    }
-
-
-    container.innerHTML = "";
-
-
-    if (
-        !features ||
-        Object.keys(features).length === 0
-    ) {
-
-        container.innerHTML = `
-
-            <div class="no-data">
-
-                Model feature importance
-                is not available.
-
-            </div>
-
-        `;
-
-        return;
-
-    }
-
-
-    const featureNames = {
-
-        Energy_Consumption_kWh:
-            "Energy Consumption",
-
-        Water_Consumption_L:
-            "Water Consumption",
-
-        Temperature_C:
-            "Temperature",
-
-        Humidity_Percent:
-            "Humidity",
-
-        CO2_Level_ppm:
-            "CO₂ Level",
-
-        Occupancy:
-            "Occupancy"
-
-    };
-
-
-    const featureIcons = {
-
-        Energy_Consumption_kWh:
-            "⚡",
-
-        Water_Consumption_L:
-            "💧",
-
-        Temperature_C:
-            "🌡",
-
-        Humidity_Percent:
-            "💦",
-
-        CO2_Level_ppm:
-            "🌫",
-
-        Occupancy:
-            "👥"
-
-    };
-
-
-    const sortedFeatures =
-        Object.entries(
-            features
-        ).sort(
-            (a, b) =>
-                Number(b[1]) -
-                Number(a[1])
-        );
-
-
-    sortedFeatures.forEach(
-        ([feature, importance]) => {
-
-            const item =
-                document.createElement(
-                    "div"
-                );
-
-
-            item.className =
-                "feature-item";
-
-
-            const value =
-                Number(
-                    importance
-                );
-
-
-            item.innerHTML = `
-
-                <div
-                    class="feature-header"
-                >
-
-                    <span>
-
-                        <span
-                            class="feature-icon"
-                        >
-
-                            ${
-                                featureIcons[
-                                    feature
-                                ] || "•"
-                            }
-
-                        </span>
-
-                        ${
-                            featureNames[
-                                feature
-                            ] || feature
-                        }
-
-                    </span>
-
-
-                    <strong>
-                        ${value.toFixed(2)}%
-                    </strong>
-
-                </div>
-
-
-                <div
-                    class="feature-track"
-                >
-
-                    <div
-                        class="feature-fill"
-                        style="
-                            width:
-                            ${Math.min(value, 100)}%
-                        "
-                    ></div>
-
-                </div>
+                <span class="view-details">
+                    View details →
+                </span>
 
             `;
 
 
-            container.appendChild(
-                item
+            button.addEventListener(
+                "click",
+                () => {
+
+                    selectBuilding(name);
+
+                }
             );
 
+
+            container.appendChild(button);
+
         }
+    );
+
+
+    updateBuildingCount();
+
+}
+
+
+/* =========================================================
+   BUILDING LABEL
+========================================================= */
+
+function getBuildingLabel(name) {
+
+    const lower =
+        String(name).toLowerCase();
+
+
+    if (lower.includes("academic")) {
+
+        return "ACADEMIC";
+
+    }
+
+
+    if (lower.includes("main")) {
+
+        return "ADMINISTRATION";
+
+    }
+
+
+    if (lower.includes("hostel")) {
+
+        return "RESIDENTIAL";
+
+    }
+
+
+    if (lower.includes("placement")) {
+
+        return "CAREER CENTRE";
+
+    }
+
+
+    return "CAMPUS BUILDING";
+
+}
+
+
+/* =========================================================
+   BUILDING COUNT
+========================================================= */
+
+function updateBuildingCount() {
+
+    const badge =
+        getElement(
+            "buildingCountBadge"
+        );
+
+
+    if (!badge) {
+
+        return;
+
+    }
+
+
+    badge.textContent =
+        `${buildingData.length} ${
+            buildingData.length === 1
+                ? "Building"
+                : "Buildings"
+        }`;
+
+}
+
+
+/* =========================================================
+   DIGITAL TWIN
+========================================================= */
+
+function updateDigitalTwin() {
+
+    if (!buildingData.length) {
+
+        return;
+
+    }
+
+
+    if (
+        !selectedBuilding ||
+        !findBuilding(selectedBuilding)
+    ) {
+
+        selectedBuilding =
+            buildingData[0].Building_ID;
+
+    }
+
+
+    selectBuilding(
+        selectedBuilding
     );
 
 }
 
 
-// ============================================================
-// IMPROVEMENT AREAS
-// ============================================================
+/* =========================================================
+   SELECT BUILDING
+========================================================= */
 
-function renderImprovementAreas(
-    areas
-) {
+function selectBuilding(name) {
 
-    const container =
-        document.getElementById(
-            "improvementAreas"
+    selectedBuilding =
+        name;
+
+
+    document
+        .querySelectorAll(
+            ".building-card"
+        )
+        .forEach(
+            card => {
+
+                card.classList.remove(
+                    "active"
+                );
+
+
+                if (
+                    String(
+                        card.dataset.building
+                    ).toLowerCase()
+                    ===
+                    String(name).toLowerCase()
+                ) {
+
+                    card.classList.add(
+                        "active"
+                    );
+
+                }
+
+            }
         );
 
 
-    if (!container) {
+    const building =
+        findBuilding(name);
+
+
+    if (!building) {
+
         return;
+
     }
 
 
-    container.innerHTML = "";
+    const config =
+        getBuildingConfig(name);
+
+
+    const displayName =
+        formatBuildingName(
+            building.Building_ID
+        );
+
+
+    setText(
+        "twinBuildingName",
+        config.type ||
+        `${displayName} Building`
+    );
+
+
+    setText(
+        "twinBuildingType",
+        displayName
+    );
+
+
+    setText(
+        "twinSelectedBsei",
+        formatNumber(
+            building.BSEI
+        )
+    );
+
+
+    setText(
+        "twinFloors",
+        config.floors
+    );
+
+
+    setText(
+        "twinEnergy",
+        formatNumber(
+            building.Energy_Consumption_kWh
+        )
+    );
+
+
+    setText(
+        "twinWater",
+        formatNumber(
+            building.Water_Consumption_L
+        )
+    );
+
+
+    setText(
+        "twinOccupancy",
+        formatNumber(
+            building.Occupancy
+        )
+    );
+
+
+    setText(
+        "twinCO2",
+        formatNumber(
+            building.CO2_Level_ppm
+        )
+    );
+
+
+    setText(
+        "twinTemperature",
+        formatNumber(
+            building.Temperature_C
+        )
+    );
+
+
+    setText(
+        "twinHumidity",
+        formatNumber(
+            building.Humidity_Percent
+        )
+    );
+
+
+    setText(
+        "twinRecommendation",
+        building.Recommendation ||
+        generateRecommendation(building)
+    );
+
+}
+
+
+/* =========================================================
+   RECOMMENDATION
+========================================================= */
+
+function generateRecommendation(
+    building
+) {
+
+    const bsei =
+        Number(
+            building.BSEI || 0
+        );
+
+
+    if (bsei < 40) {
+
+        return (
+            "Review energy and water consumption patterns " +
+            "and prioritize efficiency improvements."
+        );
+
+    }
+
+
+    if (bsei < 55) {
+
+        return (
+            "Review energy and water consumption patterns " +
+            "and continue monitoring environmental performance."
+        );
+
+    }
+
+
+    return (
+        "Continue monitoring resource consumption " +
+        "and maintain current sustainability performance."
+    );
+
+}
+
+
+/* =========================================================
+   ENERGY TREND
+========================================================= */
+
+async function loadEnergyTrend() {
+
+    const data =
+        await fetchJSON(
+            "/api/energy-trend"
+        );
+
+
+    if (!Array.isArray(data)) {
+
+        return;
+
+    }
+
+
+    energyTrendData =
+        data;
+
+
+    renderEnergyChart();
+
+}
+
+
+/* =========================================================
+   ENERGY CHART
+========================================================= */
+
+function renderEnergyChart() {
+
+    const canvas =
+        getElement(
+            "energyChart"
+        );
 
 
     if (
-        !areas ||
-        areas.length === 0
+        !canvas ||
+        energyTrendData.length === 0
     ) {
 
-        container.innerHTML = `
+        return;
 
-            <div class="no-data">
+    }
 
-                No improvement areas
-                identified.
 
-            </div>
+    if (energyChartInstance) {
+
+        energyChartInstance.destroy();
+
+    }
+
+
+    const labels =
+        energyTrendData.map(
+            item =>
+                item.date || ""
+        );
+
+
+    const energy =
+        energyTrendData.map(
+            item =>
+                Number(
+                    item.energy || 0
+                )
+        );
+
+
+    const water =
+        energyTrendData.map(
+            item =>
+                Number(
+                    item.water || 0
+                )
+        );
+
+
+    energyChartInstance =
+        new Chart(
+            canvas,
+            {
+
+                type: "line",
+
+                data: {
+
+                    labels,
+
+                    datasets: [
+
+                        {
+
+                            label:
+                                "Energy (kWh)",
+
+                            data:
+                                energy,
+
+                            borderColor:
+                                "#1f6fe5",
+
+                            backgroundColor:
+                                "rgba(31,111,229,.10)",
+
+                            borderWidth: 2,
+
+                            pointRadius: 2,
+
+                            tension: .35,
+
+                            fill: true
+
+                        },
+
+
+                        {
+
+                            label:
+                                "Water (L)",
+
+                            data:
+                                water,
+
+                            borderColor:
+                                "#20b879",
+
+                            backgroundColor:
+                                "rgba(32,184,121,.06)",
+
+                            borderWidth: 2,
+
+                            pointRadius: 2,
+
+                            tension: .35,
+
+                            fill: false
+
+                        }
+
+                    ]
+
+                },
+
+
+                options: {
+
+                    responsive: true,
+
+                    maintainAspectRatio: false,
+
+                    interaction: {
+
+                        mode: "index",
+
+                        intersect: false
+
+                    },
+
+
+                    plugins: {
+
+                        legend: {
+
+                            labels: {
+
+                                color:
+                                    "#526b89",
+
+                                font: {
+
+                                    family:
+                                        "Inter",
+
+                                    size: 11
+
+                                }
+
+                            }
+
+                        }
+
+                    },
+
+
+                    scales: {
+
+                        x: {
+
+                            ticks: {
+
+                                color:
+                                    "#7890ac",
+
+                                maxTicksLimit:
+                                    8,
+
+                                font: {
+
+                                    family:
+                                        "Inter",
+
+                                    size: 10
+
+                                }
+
+                            },
+
+                            grid: {
+
+                                color:
+                                    "#e9eef5"
+
+                            }
+
+                        },
+
+
+                        y: {
+
+                            ticks: {
+
+                                color:
+                                    "#7890ac",
+
+                                font: {
+
+                                    family:
+                                        "Inter",
+
+                                    size: 10
+
+                                }
+
+                            },
+
+                            grid: {
+
+                                color:
+                                    "#e9eef5"
+
+                            }
+
+                        }
+
+                    }
+
+                }
+
+            }
+        );
+
+}
+
+
+/* =========================================================
+   BUILDING CHART
+========================================================= */
+
+function renderBuildingChart() {
+
+    const canvas =
+        getElement(
+            "buildingChart"
+        );
+
+
+    if (
+        !canvas ||
+        buildingData.length === 0
+    ) {
+
+        return;
+
+    }
+
+
+    if (buildingChartInstance) {
+
+        buildingChartInstance.destroy();
+
+    }
+
+
+    const labels =
+        buildingData.map(
+            building =>
+                formatBuildingName(
+                    building.Building_ID
+                )
+        );
+
+
+    const values =
+        buildingData.map(
+            building =>
+                Number(
+                    building.BSEI || 0
+                )
+        );
+
+
+    buildingChartInstance =
+        new Chart(
+            canvas,
+            {
+
+                type: "bar",
+
+                data: {
+
+                    labels,
+
+                    datasets: [
+
+                        {
+
+                            label:
+                                "BSEI",
+
+                            data:
+                                values,
+
+                            backgroundColor:
+                                "#1f6fe5",
+
+                            borderRadius: 6,
+
+                            maxBarThickness: 65
+
+                        }
+
+                    ]
+
+                },
+
+
+                options: {
+
+                    responsive: true,
+
+                    maintainAspectRatio: false,
+
+                    plugins: {
+
+                        legend: {
+
+                            display: false
+
+                        }
+
+                    },
+
+
+                    scales: {
+
+                        x: {
+
+                            ticks: {
+
+                                color:
+                                    "#526b89",
+
+                                font: {
+
+                                    family:
+                                        "Inter",
+
+                                    size: 10
+
+                                }
+
+                            },
+
+                            grid: {
+
+                                display: false
+
+                            }
+
+                        },
+
+
+                        y: {
+
+                            beginAtZero: true,
+
+                            max: 100,
+
+                            ticks: {
+
+                                color:
+                                    "#7890ac",
+
+                                font: {
+
+                                    family:
+                                        "Inter",
+
+                                    size: 10
+
+                                }
+
+                            },
+
+                            grid: {
+
+                                color:
+                                    "#e9eef5"
+
+                            }
+
+                        }
+
+                    }
+
+                }
+
+            }
+        );
+
+}
+
+
+/* =========================================================
+   PREDICTIVE ANALYSIS
+========================================================= */
+
+async function loadPredictiveAnalysis() {
+
+    const data =
+        await fetchJSON(
+            "/api/predictive-analysis"
+        );
+
+
+    renderInsight(
+        "attentionAreas",
+        data.attentionAreas
+    );
+
+
+    renderInsight(
+        "predictiveBuildings",
+        data.buildingPerformance
+    );
+
+
+    renderInsight(
+        "trendAnalysis",
+        data.historicalTrends
+    );
+
+
+    renderInsight(
+        "improvementAreas",
+        data.improvementAreas
+    );
+
+
+    renderInsight(
+        "buildingRecommendations",
+        data.buildingRecommendations
+    );
+
+}
+
+
+/* =========================================================
+   INSIGHT RENDERING
+========================================================= */
+
+function renderInsight(
+    id,
+    content
+) {
+
+    const element =
+        getElement(id);
+
+
+    if (!element) {
+
+        return;
+
+    }
+
+
+    if (
+        content === null ||
+        content === undefined ||
+        content === ""
+    ) {
+
+        element.textContent =
+            "No analysis available.";
+
+        return;
+
+    }
+
+
+    if (Array.isArray(content)) {
+
+        element.innerHTML = `
+
+            <ul>
+
+                ${
+                    content
+                        .map(
+                            item =>
+                                `<li>${escapeHTML(
+                                    formatInsight(item)
+                                )}</li>`
+                        )
+                        .join("")
+                }
+
+            </ul>
 
         `;
 
@@ -1582,261 +1389,461 @@ function renderImprovementAreas(
     }
 
 
-    areas.forEach(
-        area => {
+    if (
+        typeof content === "object"
+    ) {
 
-            const card =
-                document.createElement(
-                    "div"
+        element.innerHTML = `
+
+            <ul>
+
+                ${
+                    Object.entries(content)
+                        .map(
+                            ([key, value]) => `
+
+                                <li>
+
+                                    <strong>
+                                        ${escapeHTML(
+                                            formatKey(key)
+                                        )}
+                                    </strong>
+
+                                    :
+
+                                    ${escapeHTML(
+                                        formatValue(value)
+                                    )}
+
+                                </li>
+
+                            `
+                        )
+                        .join("")
+                }
+
+            </ul>
+
+        `;
+
+        return;
+
+    }
+
+
+    element.textContent =
+        String(content);
+
+}
+
+
+/* =========================================================
+   INSIGHT FORMAT
+========================================================= */
+
+function formatInsight(item) {
+
+    if (
+        typeof item === "string" ||
+        typeof item === "number"
+    ) {
+
+        return String(item);
+
+    }
+
+
+    if (
+        item &&
+        typeof item === "object"
+    ) {
+
+        return Object.entries(item)
+            .map(
+                ([key, value]) =>
+                    `${formatKey(key)}: ${formatValue(value)}`
+            )
+            .join(" • ");
+
+    }
+
+
+    return "";
+
+}
+
+
+function formatKey(key) {
+
+    return String(key)
+
+        .replace(
+            /([a-z])([A-Z])/g,
+            "$1 $2"
+        )
+
+        .replace(
+            /_/g,
+            " "
+        )
+
+        .replace(
+            /\b\w/g,
+            char =>
+                char.toUpperCase()
+        );
+
+}
+
+
+function formatValue(value) {
+
+    if (
+        typeof value === "number"
+    ) {
+
+        return formatNumber(
+            value
+        );
+
+    }
+
+
+    if (
+        Array.isArray(value)
+    ) {
+
+        return value.join(", ");
+
+    }
+
+
+    return String(
+        value ?? "--"
+    );
+
+}
+
+
+/* =========================================================
+   FALLBACK INSIGHTS
+========================================================= */
+
+function generateFallbackInsights() {
+
+    if (!buildingData.length) {
+
+        return;
+
+    }
+
+
+    const sorted =
+        [...buildingData].sort(
+            (a, b) =>
+                Number(a.BSEI || 0) -
+                Number(b.BSEI || 0)
+        );
+
+
+    const lowest =
+        sorted[0];
+
+
+    renderInsight(
+        "attentionAreas",
+        [
+            `${formatBuildingName(
+                lowest.Building_ID
+            )} has the lowest BSEI at ${formatNumber(
+                lowest.BSEI
+            )}.`
+        ]
+    );
+
+
+    renderInsight(
+        "predictiveBuildings",
+        buildingData.map(
+            building =>
+                `${formatBuildingName(
+                    building.Building_ID
+                )}: BSEI ${formatNumber(
+                    building.BSEI
+                )}`
+        )
+    );
+
+
+    renderInsight(
+        "trendAnalysis",
+        [
+            "Historical energy and water consumption can be monitored through the resource analytics chart."
+        ]
+    );
+
+
+    renderInsight(
+        "improvementAreas",
+        [
+            `Review resource consumption patterns in ${
+                formatBuildingName(
+                    lowest.Building_ID
+                )
+            }.`
+        ]
+    );
+
+
+    renderInsight(
+        "buildingRecommendations",
+        buildingData.map(
+            building =>
+                `${formatBuildingName(
+                    building.Building_ID
+                )}: ${
+                    building.Recommendation ||
+                    generateRecommendation(
+                        building
+                    )
+                }`
+        )
+    );
+
+}
+
+
+/* =========================================================
+   MACHINE LEARNING
+========================================================= */
+
+function setupPredictionForm() {
+
+    const form =
+        getElement(
+            "predictionForm"
+        );
+
+
+    if (!form) {
+
+        return;
+
+    }
+
+
+    form.addEventListener(
+        "submit",
+        async event => {
+
+            event.preventDefault();
+
+
+            const values = {
+
+                energy:
+                    Number(
+                        getElement(
+                            "p_energy"
+                        ).value
+                    ),
+
+                water:
+                    Number(
+                        getElement(
+                            "p_water"
+                        ).value
+                    ),
+
+                power:
+                    Number(
+                        getElement(
+                            "p_power"
+                        ).value
+                    ),
+
+                temperature:
+                    Number(
+                        getElement(
+                            "p_temperature"
+                        ).value
+                    ),
+
+                humidity:
+                    Number(
+                        getElement(
+                            "p_humidity"
+                        ).value
+                    ),
+
+                electricity_coverage:
+                    Number(
+                        getElement(
+                            "p_electricity_coverage"
+                        ).value
+                    ),
+
+                water_coverage:
+                    Number(
+                        getElement(
+                            "p_water_coverage"
+                        ).value
+                    ),
+
+                day_of_week:
+                    Number(
+                        getElement(
+                            "p_day"
+                        ).value
+                    ),
+
+                month:
+                    Number(
+                        getElement(
+                            "p_month"
+                        ).value
+                    ),
+
+                is_weekend:
+                    Number(
+                        getElement(
+                            "p_weekend"
+                        ).value
+                    )
+
+            };
+
+
+            const resultElement =
+                getElement(
+                    "predictionResult"
                 );
 
 
-            card.className =
-                "improvement-card";
+            resultElement.innerHTML = `
+                <span>
+                    Calculating...
+                </span>
+            `;
 
 
-            let icon =
-                "💡";
+            try {
+
+                const result =
+                    await fetchJSON(
+                        "/api/predict",
+                        {
+
+                            method: "POST",
+
+                            body:
+                                JSON.stringify(
+                                    values
+                                )
+
+                        }
+                    );
 
 
-            if (
-                area.area.includes(
-                    "Energy"
-                )
-            ) {
-
-                icon =
-                    "⚡";
-
-            }
-
-            else if (
-                area.area.includes(
-                    "Water"
-                )
-            ) {
-
-                icon =
-                    "💧";
-
-            }
-
-            else if (
-                area.area.includes(
-                    "Environmental"
-                )
-            ) {
-
-                icon =
-                    "🌬";
-
-            }
+                const predicted =
+                    Number(
+                        result.predictedBSEI
+                    );
 
 
-            card.innerHTML = `
+                resultElement.innerHTML = `
 
-                <div
-                    class="improvement-icon"
-                >
+                    <div class="prediction-main">
 
-                    ${icon}
-
-                </div>
-
-
-                <div>
-
-                    <h4>
-                        ${area.area}
-                    </h4>
-
-                    <p>
-                        ${area.reason}
-                    </p>
-
-
-                    <div
-                        class="improvement-action"
-                    >
+                        <span>
+                            Predicted BSEI
+                        </span>
 
                         <strong>
-                            Action:
+                            ${formatNumber(
+                                predicted
+                            )}
                         </strong>
 
-                        ${area.action}
+                        <small>
+                            / 100
+                        </small>
 
                     </div>
 
-                </div>
 
-            `;
+                    <div class="prediction-components">
 
+                        <div>
 
-            container.appendChild(
-                card
-            );
+                            <span>
+                                Energy Efficiency
+                            </span>
 
-        }
-    );
+                            <strong>
+                                ${formatNumber(
+                                    result.energyEfficiency
+                                )}
+                            </strong>
 
-}
-
-
-// ============================================================
-// BUILDING RECOMMENDATIONS
-// ============================================================
-
-function renderBuildingRecommendations(
-    recommendations
-) {
-
-    const container =
-        document.getElementById(
-            "buildingRecommendations"
-        );
+                        </div>
 
 
-    if (!container) {
-        return;
-    }
+                        <div>
+
+                            <span>
+                                Water Efficiency
+                            </span>
+
+                            <strong>
+                                ${formatNumber(
+                                    result.waterEfficiency
+                                )}
+                            </strong>
+
+                        </div>
 
 
-    container.innerHTML = "";
+                        <div>
 
+                            <span>
+                                Environmental Efficiency
+                            </span>
 
-    if (
-        !recommendations ||
-        recommendations.length === 0
-    ) {
+                            <strong>
+                                ${formatNumber(
+                                    result.environmentalEfficiency
+                                )}
+                            </strong>
 
-        container.innerHTML = `
+                        </div>
 
-            <div class="no-data">
+                    </div>
 
-                No building-specific recommendations
-                were generated from the current dataset.
+                `;
 
-            </div>
+            } catch (error) {
 
-        `;
-
-        return;
-
-    }
-
-
-    recommendations.forEach(
-        item => {
-
-            const card =
-                document.createElement(
-                    "div"
+                console.error(
+                    "Prediction error:",
+                    error
                 );
 
 
-            card.className =
-                "recommendation-item";
+                resultElement.innerHTML = `
 
+                    <div class="prediction-error">
 
-            const list =
-                (
-                    item.recommendations || []
-                )
-                .map(
-                    recommendation => `
+                        Prediction failed.
 
-                        <li>
-                            ${recommendation}
-                        </li>
+                        <br>
 
-                    `
-                )
-                .join("");
-
-
-            card.innerHTML = `
-
-                <div
-                    class="recommendation-building"
-                >
-
-                    <span
-                        class="recommendation-building-icon"
-                    >
-                        🏢
-                    </span>
-
-                    <strong>
-                        ${item.building}
-                    </strong>
-
-                </div>
-
-
-                <ul>
-                    ${list}
-                </ul>
-
-            `;
-
-
-            container.appendChild(
-                card
-            );
-
-        }
-    );
-
-}
-
-
-// ============================================================
-// PREDICTIVE ERROR
-// ============================================================
-
-function showPredictiveError() {
-
-    const ids = [
-
-        "attentionAreas",
-
-        "predictiveBuildings",
-
-        "trendAnalysis",
-
-        "featureImportance",
-
-        "improvementAreas",
-
-        "buildingRecommendations"
-
-    ];
-
-
-    ids.forEach(
-        id => {
-
-            const element =
-                document.getElementById(
-                    id
-                );
-
-
-            if (element) {
-
-                element.innerHTML = `
-
-                    <div
-                        class="no-data error-message"
-                    >
-
-                        Unable to load predictive
-                        analysis from the backend.
-
-                        <br><br>
-
-                        Make sure the Flask backend
-                        is running on port 5000.
+                        <small>
+                            ${escapeHTML(
+                                error.message
+                            )}
+                        </small>
 
                     </div>
 
@@ -1848,574 +1855,3 @@ function showPredictiveError() {
     );
 
 }
-
-
-// ============================================================
-// INDIVIDUAL ML PREDICTION
-// ============================================================
-
-async function predictScore() {
-
-    const energy =
-        Number(
-            document.getElementById(
-                "p_energy"
-            ).value
-        );
-
-
-    const water =
-        Number(
-            document.getElementById(
-                "p_water"
-            ).value
-        );
-
-
-    const temperature =
-        Number(
-            document.getElementById(
-                "p_temperature"
-            ).value
-        );
-
-
-    const humidity =
-        Number(
-            document.getElementById(
-                "p_humidity"
-            ).value
-        );
-
-
-    const co2 =
-        Number(
-            document.getElementById(
-                "p_co2"
-            ).value
-        );
-
-
-    const occupancy =
-        Number(
-            document.getElementById(
-                "p_occupancy"
-            ).value
-        );
-
-
-    const result =
-        document.getElementById(
-            "predictionResult"
-        );
-
-
-    result.innerHTML =
-        "Calculating prediction...";
-
-
-    try {
-
-        const response =
-            await fetch(
-                `${API_URL}/api/predict`,
-                {
-
-                    method:
-                        "POST",
-
-                    headers: {
-
-                        "Content-Type":
-                            "application/json"
-
-                    },
-
-                    body:
-                        JSON.stringify({
-
-                            Energy_Consumption_kWh:
-                                energy,
-
-                            Water_Consumption_L:
-                                water,
-
-                            Temperature_C:
-                                temperature,
-
-                            Humidity_Percent:
-                                humidity,
-
-                            CO2_Level_ppm:
-                                co2,
-
-                            Occupancy:
-                                occupancy
-
-                        })
-
-                }
-            );
-
-
-        if (!response.ok) {
-
-            throw new Error(
-                "Prediction request failed"
-            );
-
-        }
-
-
-        const data =
-            await response.json();
-
-
-        if (
-            data.predicted_sustainability_score
-            !== undefined
-        ) {
-
-            result.innerHTML = `
-
-                Predicted Sustainability Score:
-
-                <strong>
-
-                    ${
-                        Number(
-                            data.predicted_sustainability_score
-                        ).toFixed(2)
-                    }
-
-                </strong>
-
-                <span
-                    class="prediction-scale"
-                >
-                    / 100
-                </span>
-
-            `;
-
-        }
-
-        else {
-
-            result.textContent =
-                "Prediction failed.";
-
-        }
-
-    }
-
-    catch (error) {
-
-        console.error(
-            "Prediction error:",
-            error
-        );
-
-
-        result.textContent =
-            "Unable to connect to backend.";
-
-    }
-
-}
-
-
-// ============================================================
-// DIGITAL TWIN
-// ============================================================
-
-async function loadDigitalTwin() {
-
-    try {
-
-        const response =
-            await fetch(
-                `${API_URL}/api/predictive-analysis`
-            );
-
-
-        if (!response.ok) {
-
-            throw new Error(
-                "Digital Twin API request failed"
-            );
-
-        }
-
-
-        const data =
-            await response.json();
-
-
-        console.log(
-            "Digital Twin Data:",
-            data
-        );
-
-
-        digitalTwinBuildings =
-            data.building_analysis || [];
-
-
-        digitalTwinRecommendations =
-            data.building_recommendations || [];
-
-
-        digitalTwinBuildings.forEach(
-            building => {
-
-                const element =
-                    document.getElementById(
-                        `twinScore${building.building}`
-                    );
-
-
-                if (element) {
-
-                    element.textContent =
-                        Number(
-                            building.sustainability_score
-                        ).toFixed(1);
-
-                }
-
-            }
-        );
-
-
-        if (
-            digitalTwinBuildings.length > 0
-        ) {
-
-            selectTwinBuilding(
-                digitalTwinBuildings[0].building
-            );
-
-        }
-
-    }
-
-    catch (error) {
-
-        console.error(
-            "Digital Twin Error:",
-            error
-        );
-
-
-        const details =
-            document.getElementById(
-                "twinBuildingDetails"
-            );
-
-
-        if (details) {
-
-            details.innerHTML = `
-
-                <div class="no-data">
-
-                    Unable to load Digital Twin data.
-
-                </div>
-
-            `;
-
-        }
-
-    }
-
-}
-
-
-// ============================================================
-// SELECT DIGITAL TWIN BUILDING
-// ============================================================
-
-function selectTwinBuilding(
-    buildingName
-) {
-
-    console.log(
-        "Selected building:",
-        buildingName
-    );
-
-
-    const building =
-        digitalTwinBuildings.find(
-            item =>
-                item.building ===
-                buildingName
-        );
-
-
-    if (!building) {
-
-        console.error(
-            "Building data not found:",
-            buildingName
-        );
-
-        return;
-
-    }
-
-
-    document
-        .querySelectorAll(
-            ".twin-building"
-        )
-        .forEach(
-            button => {
-
-                button.classList.remove(
-                    "active"
-                );
-
-            }
-        );
-
-
-    const selectedButton =
-        document.querySelector(
-            `.twin-building[data-building="${buildingName}"]`
-        );
-
-
-    if (selectedButton) {
-
-        selectedButton.classList.add(
-            "active"
-        );
-
-    }
-
-
-    const recommendationData =
-        digitalTwinRecommendations.find(
-            item =>
-                item.building ===
-                buildingName
-        );
-
-
-    let recommendation =
-        "No specific recommendation available.";
-
-
-    if (
-        recommendationData &&
-        recommendationData.recommendations &&
-        recommendationData.recommendations.length > 0
-    ) {
-
-        recommendation =
-            recommendationData
-                .recommendations
-                .join(", ");
-
-    }
-
-
-    const details =
-        document.getElementById(
-            "twinBuildingDetails"
-        );
-
-
-    if (!details) {
-        return;
-    }
-
-
-    details.innerHTML = `
-
-        <div
-            class="twin-details-header"
-        >
-
-            <div
-                class="twin-details-title"
-            >
-
-                <span>
-                    🏢
-                </span>
-
-                <h4>
-                    ${buildingName} Building
-                </h4>
-
-            </div>
-
-
-            <div
-                class="twin-details-score"
-            >
-
-                <span>
-                    Sustainability
-                </span>
-
-                <strong>
-
-                    ${
-                        Number(
-                            building.sustainability_score
-                        ).toFixed(2)
-                    }
-
-                </strong>
-
-            </div>
-
-        </div>
-
-
-        <div class="twin-metrics">
-
-
-            <div class="twin-metric">
-
-                <span
-                    class="twin-metric-label"
-                >
-                    Energy
-                </span>
-
-                <strong>
-
-                    ${
-                        Number(
-                            building.energy
-                        ).toFixed(2)
-                    }
-
-                </strong>
-
-                <small>
-                    kWh
-                </small>
-
-            </div>
-
-
-            <div class="twin-metric">
-
-                <span
-                    class="twin-metric-label"
-                >
-                    Water
-                </span>
-
-                <strong>
-
-                    ${
-                        Number(
-                            building.water
-                        ).toFixed(2)
-                    }
-
-                </strong>
-
-                <small>
-                    L
-                </small>
-
-            </div>
-
-
-            <div class="twin-metric">
-
-                <span
-                    class="twin-metric-label"
-                >
-                    CO₂
-                </span>
-
-                <strong>
-
-                    ${
-                        Number(
-                            building.co2
-                        ).toFixed(2)
-                    }
-
-                </strong>
-
-                <small>
-                    ppm
-                </small>
-
-            </div>
-
-
-            <div class="twin-metric">
-
-                <span
-                    class="twin-metric-label"
-                >
-                    Occupancy
-                </span>
-
-                <strong>
-
-                    ${
-                        Number(
-                            building.occupancy
-                        ).toFixed(2)
-                    }
-
-                </strong>
-
-                <small>
-                    people
-                </small>
-
-            </div>
-
-
-        </div>
-
-
-        <div class="twin-recommendation">
-
-            <strong>
-                Recommendation:
-            </strong>
-
-            ${recommendation}
-
-        </div>
-
-    `;
-
-}
-
-
-// ============================================================
-// INITIALIZE DASHBOARD
-// ============================================================
-
-document.addEventListener(
-    "DOMContentLoaded",
-    function() {
-
-        loadDashboard();
-
-        loadBuildingScores();
-
-        loadEnergyChart();
-
-        loadPredictiveAnalysis();
-
-        loadDigitalTwin();
-
-    }
-);

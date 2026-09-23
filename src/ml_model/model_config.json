@@ -1,0 +1,43 @@
+{
+    "model_type": "Random Forest Regressor",
+    "dataset": "UNICON Public Dataset",
+    "target": "BSEI",
+    "features": [
+        "energy_consumption_kWh",
+        "avg_power_kW",
+        "electricity_coverage",
+        "water_consumption_L",
+        "water_coverage",
+        "air_temperature",
+        "relative_humidity",
+        "relative_energy",
+        "relative_water",
+        "energy_efficiency",
+        "water_efficiency",
+        "environmental_deviation",
+        "environmental_efficiency",
+        "day_of_week",
+        "month",
+        "is_weekend"
+    ],
+    "bsei_weights": {
+        "energy": 0.45,
+        "water": 0.35,
+        "environment": 0.2
+    },
+    "energy_weight_percent": 45,
+    "water_weight_percent": 35,
+    "environment_weight_percent": 20,
+    "metrics": {
+        "training_records": 145,
+        "training_samples": 116,
+        "testing_samples": 29,
+        "features": 16,
+        "MAE": 1.097856098795835,
+        "MSE": 2.218419466664884,
+        "RMSE": 1.4894359558788972,
+        "R2": 0.8955511821408978,
+        "CV_R2_Mean": 0.8838062750221589,
+        "CV_R2_Std": 0.05090069757290754
+    }
+}
