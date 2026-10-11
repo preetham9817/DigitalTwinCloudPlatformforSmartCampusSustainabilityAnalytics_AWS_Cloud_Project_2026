@@ -1307,6 +1307,428 @@ body {
 }
 
 
+.attention-panel,
+.attention-alert-list {
+
+    display: grid;
+
+    gap: 10px;
+
+}
+
+
+.attention-empty,
+.attention-alert-card {
+
+    border: 1px solid var(--border);
+
+    border-radius: 12px;
+
+    background: var(--white);
+
+}
+
+
+.attention-empty {
+
+    display: flex;
+
+    align-items: center;
+
+    gap: 10px;
+
+    padding: 12px;
+
+    color: #145b3c;
+
+    background: #f1faf5;
+
+    border-color: #ccebd9;
+
+}
+
+
+.attention-empty-compact {
+
+    padding: 9px 12px;
+
+    font-size: 11px;
+
+}
+
+
+.attention-empty-icon {
+
+    display: grid;
+
+    flex: 0 0 28px;
+
+    width: 28px;
+    height: 28px;
+
+    place-items: center;
+
+    border-radius: 50%;
+
+    color: #145b3c;
+
+    background: #dff4e8;
+
+    font-weight: 800;
+
+}
+
+
+.attention-empty strong {
+
+    font-size: 12px;
+
+}
+
+
+.attention-empty p {
+
+    margin-top: 2px;
+
+    color: #426957;
+
+    font-size: 11px;
+
+}
+
+
+.attention-alert-card {
+
+    padding: 13px;
+
+    box-shadow: 0 3px 12px rgba(17, 51, 88, 0.035);
+
+}
+
+
+.attention-alert-topline {
+
+    display: flex;
+
+    align-items: center;
+
+    gap: 9px;
+
+}
+
+
+.attention-alert-topline h4 {
+
+    flex: 1;
+
+    color: var(--navy-950);
+
+    font-size: 13px;
+
+    font-weight: 700;
+
+}
+
+
+.attention-alert-icon {
+
+    display: grid;
+
+    flex: 0 0 32px;
+
+    width: 32px;
+    height: 32px;
+
+    place-items: center;
+
+    border-radius: 9px;
+
+    background: var(--blue-soft);
+
+    font-size: 16px;
+
+}
+
+
+.attention-status {
+
+    flex: 0 0 auto;
+
+    padding: 3px 8px;
+
+    border-radius: 999px;
+
+    font-size: 10px;
+
+    font-weight: 700;
+
+    line-height: 1.4;
+
+}
+
+
+.attention-status.monitor {
+
+    color: #164a78;
+
+    background: #e8f2fc;
+
+    border: 1px solid #bfd8f0;
+
+}
+
+
+.attention-status.needs-review {
+
+    color: #783d00;
+
+    background: #fff3df;
+
+    border: 1px solid #edcf9c;
+
+}
+
+
+.attention-alert-subject {
+
+    margin-top: 8px;
+
+    color: var(--text-muted);
+
+    font-size: 10px;
+
+    font-weight: 600;
+
+}
+
+
+.attention-alert-value {
+
+    display: flex;
+
+    flex-wrap: wrap;
+
+    align-items: baseline;
+
+    justify-content: space-between;
+
+    gap: 4px 10px;
+
+    margin-top: 3px;
+
+    color: var(--navy-950);
+
+    font-size: 12px;
+
+}
+
+
+.attention-alert-value strong {
+
+    font-size: 15px;
+
+    font-weight: 700;
+
+}
+
+
+.attention-alert-value span {
+
+    color: #6c5633;
+
+    font-size: 10px;
+
+}
+
+
+.attention-alert-explanation,
+.attention-alert-action {
+
+    margin-top: 7px;
+
+    color: var(--text-secondary);
+
+    font-size: 11px;
+
+    line-height: 1.5;
+
+}
+
+
+.attention-alert-action strong {
+
+    color: var(--navy-800);
+
+}
+
+
+.performance-list,
+.recommendation-list,
+.weight-list {
+
+    display: grid;
+
+    gap: 10px;
+
+}
+
+
+.performance-card,
+.recommendation-card {
+
+    padding: 12px;
+
+    border: 1px solid var(--border);
+
+    border-radius: 10px;
+
+    background: #fbfcfe;
+
+}
+
+
+.performance-card h4,
+.recommendation-card h4 {
+
+    color: var(--navy-950);
+
+    font-size: 13px;
+
+    font-weight: 700;
+
+}
+
+
+.performance-score {
+
+    color: var(--text-muted);
+
+    font-size: 11px;
+
+}
+
+
+.performance-score strong {
+
+    color: var(--blue);
+
+    font-size: 14px;
+
+}
+
+
+.performance-metrics {
+
+    display: grid;
+
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+
+    gap: 8px 12px;
+
+    margin-top: 10px;
+
+}
+
+
+.performance-metrics dt {
+
+    color: var(--text-muted);
+
+    font-size: 10px;
+
+}
+
+
+.performance-metrics dd {
+
+    color: var(--text-secondary);
+
+    font-size: 11px;
+
+    font-weight: 600;
+
+}
+
+
+.weight-item {
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: space-between;
+
+    padding: 9px 12px;
+
+    border: 1px solid var(--border);
+
+    border-radius: 9px;
+
+    background: #fbfcfe;
+
+    color: var(--text-secondary);
+
+    font-size: 12px;
+
+}
+
+
+.weight-item strong {
+
+    color: var(--blue);
+
+    font-size: 13px;
+
+}
+
+
+.recommendation-card p {
+
+    margin-top: 7px;
+
+    color: var(--text-secondary);
+
+    font-size: 11px;
+
+    line-height: 1.5;
+
+}
+
+
+.recommendation-card .recommendation-gap,
+.recommendation-card .recommendation-gap-breakdown {
+
+    color: var(--text-muted);
+
+    font-size: 10px;
+
+}
+
+.recommendation-card .recommendation-gap-breakdown {
+
+    margin-top: 3px;
+
+}
+
+
+.recommendation-gap strong {
+
+    color: var(--blue);
+
+    font-weight: 700;
+
+}
+
+
+.recommendation-gap-breakdown span {
+
+    color: var(--text-secondary);
+
+    font-weight: 600;
+
+}
+
+
 /* =========================================================
    MACHINE LEARNING
 ========================================================= */
@@ -1820,6 +2242,12 @@ body {
 
         padding:
             20px;
+
+    }
+
+    .performance-metrics {
+
+        grid-template-columns: 1fr;
 
     }
 

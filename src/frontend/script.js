@@ -78,7 +78,7 @@ function formatNumber(value, decimals = 2) {
         value === null ||
         value === undefined ||
         value === "" ||
-        Number.isNaN(Number(value))
+        !Number.isFinite(Number(value))
     ) {
 
         return "--";
@@ -404,7 +404,7 @@ function getBuildingConfig(name) {
 
     return {
 
-        floors: "--",
+        floors: "Not specified",
 
         type:
             `${formatBuildingName(name)} Building`
@@ -1329,6 +1329,224 @@ async function loadPredictiveAnalysis() {
 }
 
 
+function renderBuildingPerformance(buildings) {
+
+    const metrics = [
+        ["Energy_Consumption_kWh", "Energy Consumption (kWh / record)"],
+        ["Water_Consumption_L", "Water Consumption (L / record)"],
+        ["CO2_Level_ppm", "CO₂ Level (ppm)"],
+        ["Temperature_C", "Temperature (°C)"],
+        ["Humidity_Percent", "Humidity (%)"],
+        ["Occupancy", "Occupancy (per record)"],
+        ["Records", "Records"]
+    ];
+
+    return `
+        <div class="performance-list">
+            ${buildings.map(building => `
+                <article class="performance-card">
+                    <h4>${escapeHTML(
+                        formatBuildingName(building.Building_ID)
+                    )}</h4>
+                    <p class="performance-score">
+                        BSEI <strong>${escapeHTML(
+                            formatNumber(building.BSEI)
+                        )}</strong>
+                    </p>
+                    <dl class="performance-metrics">
+                        ${metrics.map(([key, label]) => `
+                            <div>
+                                <dt>${escapeHTML(label)}</dt>
+                                <dd>${escapeHTML(
+                                    key === "Records"
+                                        ? formatValue(building[key])
+                                        : formatNumber(building[key])
+                                )}</dd>
+                            </div>
+                        `).join("")}
+                    </dl>
+                </article>
+            `).join("")}
+        </div>
+    `;
+
+}
+
+
+function renderBuildingRecommendations(buildings) {
+
+    return `
+        <div class="recommendation-list">
+            ${buildings.map(building => `
+                <article class="recommendation-card">
+                    <h4>${escapeHTML(
+                        formatBuildingName(building.Building_ID)
+                    )}</h4>
+                    <p class="recommendation-gap">
+                        Largest weighted gap:
+                        <strong>${escapeHTML(
+                            building.Recommendation_Component
+                                ? formatBuildingName(
+                                    building.Recommendation_Component
+                                )
+                                : "Unavailable"
+                        )}</strong>
+                        ·
+                        <strong>${escapeHTML(
+                            building.Recommendation_Gap === null ||
+                            building.Recommendation_Gap === undefined
+                                ? "--"
+                                : `${formatNumber(
+                                    building.Recommendation_Gap
+                                )} BSEI points`
+                        )}</strong>
+                    </p>
+                    <p class="recommendation-gap-breakdown">
+                        Component gaps (BSEI points):
+                        ${building.Recommendation_Gaps
+                            ? ["energy", "water", "environment"].map(key => `
+                                <span>
+                                    ${escapeHTML(
+                                        formatBuildingName(key)
+                                    )}
+                                    ${escapeHTML(
+                                        formatNumber(
+                                            building.Recommendation_Gaps[key]
+                                        )
+                                    )}
+                                </span>
+                            `).join(" · ")
+                            : "Unavailable"}
+                    </p>
+                    <p>${escapeHTML(
+                        building.Recommendation ||
+                        "Collect complete sensor readings to support a building-specific action."
+                    )}</p>
+                </article>
+            `).join("")}
+        </div>
+    `;
+
+}
+
+
+function renderWeightDistribution(weights) {
+
+    const labels = [
+        ["energy", "Energy"],
+        ["environment", "Environment"],
+        ["water", "Water"]
+    ];
+
+    return `
+        <div class="weight-list">
+            ${labels.map(([key, label]) => `
+                <div class="weight-item">
+                    <span>${label}</span>
+                    <strong>${escapeHTML(
+                        formatNumber(weights[key], 0)
+                    )}%</strong>
+                </div>
+            `).join("")}
+        </div>
+    `;
+
+}
+
+
+function renderAttentionAreas(alerts) {
+
+    const alertItems = Array.isArray(alerts)
+        ? alerts.filter(item => item && typeof item === "object")
+        : [];
+
+    if (!alertItems.length) {
+        return `
+            <div class="attention-empty" role="status">
+                <span class="attention-empty-icon" aria-hidden="true">✓</span>
+                <div>
+                    <strong>No validated alerts at this time</strong>
+                    <p>No building is below campus BSEI or component-efficiency comparisons.</p>
+                </div>
+            </div>
+        `;
+    }
+
+    return `
+        <div class="attention-panel">
+            <div class="attention-alert-list">
+                ${alertItems.map(item => {
+                    const severityClass =
+                        item.severity === "review"
+                            ? "needs-review"
+                            : "monitor";
+                    const title = item.title || item.area || "Monitoring";
+                    const status = item.status || "Monitor";
+                    const value = item.value === null ||
+                        item.value === undefined
+                        ? "Not available"
+                        : `${formatNumber(item.value)} ${item.unit || ""}`.trim();
+
+                    return `
+                        <article class="attention-alert-card">
+                            <div class="attention-alert-topline">
+                                <span class="attention-alert-icon" aria-hidden="true">
+                                    ${escapeHTML(item.icon || "ℹ")}
+                                </span>
+                                <h4>${escapeHTML(title)}</h4>
+                                <span class="attention-status ${severityClass}">
+                                    ${escapeHTML(status)}
+                                </span>
+                            </div>
+                            <p class="attention-alert-subject">
+                                ${escapeHTML(item.affected || "Campus")}
+                                ${item.metric ? ` · ${escapeHTML(item.metric)}` : ""}
+                            </p>
+                            <p class="attention-alert-value">
+                                <strong>${escapeHTML(value)}</strong>
+                                <span>
+                                    BSEI ${escapeHTML(formatNumber(item.bsei))}
+                                    ${item.weightedGap !== undefined
+                                        ? ` · Weighted gap ${escapeHTML(
+                                            formatNumber(item.weightedGap)
+                                        )} points`
+                                        : ""}
+                                </span>
+                            </p>
+                            ${item.observedConsumption !== undefined ? `
+                                <p class="attention-alert-subject">
+                                        Mean water consumption:
+                                        ${escapeHTML(
+                                            Number(
+                                                item.observedConsumption
+                                            ).toLocaleString("en-US", {
+                                                minimumFractionDigits: 2,
+                                                maximumFractionDigits: 2
+                                            })
+                                        )} ${escapeHTML(item.consumptionUnit || "")}
+                                </p>
+                            ` : ""}
+                            <p class="attention-alert-explanation">
+                                ${escapeHTML(
+                                    item.message || "Monitoring context only."
+                                )}
+                            </p>
+                            ${item.recommendation ? `
+                                <p class="attention-alert-action">
+                                    <strong>Suggested action:</strong>
+                                    ${escapeHTML(item.recommendation)}
+                                </p>
+                            ` : ""}
+                        </article>
+                    `;
+                }).join("")}
+            </div>
+        </div>
+    `;
+
+}
+
+
 /* =========================================================
    INSIGHT RENDERING
 ========================================================= */
@@ -1348,6 +1566,10 @@ function renderInsight(
 
     }
 
+    if (id === "attentionAreas") {
+        element.innerHTML = renderAttentionAreas(content);
+        return;
+    }
 
     if (
         content === null ||
@@ -1358,6 +1580,57 @@ function renderInsight(
         element.textContent =
             "No analysis available.";
 
+        return;
+
+    }
+
+    if (
+        id === "predictiveBuildings" &&
+        Array.isArray(content)
+    ) {
+
+        element.innerHTML = content.length
+            ? renderBuildingPerformance(content)
+            : "No building performance data available.";
+        return;
+
+    }
+
+    if (
+        id === "improvementAreas" &&
+        content &&
+        typeof content === "object" &&
+        !Array.isArray(content)
+    ) {
+
+        element.innerHTML = renderWeightDistribution(content);
+        return;
+
+    }
+
+
+    if (
+        id === "buildingRecommendations" &&
+        Array.isArray(content)
+    ) {
+
+        if (!content.length) {
+            element.textContent = "No building recommendations available.";
+            return;
+        }
+
+        if (content.some(item => item && typeof item === "object")) {
+            element.innerHTML = renderBuildingRecommendations(content);
+            return;
+        }
+
+        element.innerHTML = `
+            <ul>
+                ${content.map(item => `
+                    <li>${escapeHTML(formatInsight(item))}</li>
+                `).join("")}
+            </ul>
+        `;
         return;
 
     }
@@ -1476,6 +1749,29 @@ function formatInsight(item) {
 
 function formatKey(key) {
 
+    const labels = {
+        bsei: "BSEI",
+        building_id: "Building",
+        energy_consumption_kwh: "Energy Consumption (kWh)",
+        water_consumption_l: "Water Consumption (L)",
+        co2_level_ppm: "CO₂ Level (ppm)",
+        temperature_c: "Temperature (°C)",
+        humidity_percent: "Humidity (%)",
+        occupancy: "Occupancy",
+        records: "Records",
+        recommendation: "Recommendation",
+        area: "Area",
+        unit: "Unit",
+        value: "Value",
+        message: "Reason"
+    };
+
+    const normalizedKey = String(key).toLowerCase();
+
+    if (labels[normalizedKey]) {
+        return labels[normalizedKey];
+    }
+
     return String(key)
 
         .replace(
@@ -1538,41 +1834,15 @@ function generateFallbackInsights() {
 
     }
 
-
-    const sorted =
-        [...buildingData].sort(
-            (a, b) =>
-                Number(a.BSEI || 0) -
-                Number(b.BSEI || 0)
-        );
-
-
-    const lowest =
-        sorted[0];
-
-
     renderInsight(
         "attentionAreas",
-        [
-            `${formatBuildingName(
-                lowest.Building_ID
-            )} has the lowest BSEI at ${formatNumber(
-                lowest.BSEI
-            )}.`
-        ]
+        []
     );
 
 
     renderInsight(
         "predictiveBuildings",
-        buildingData.map(
-            building =>
-                `${formatBuildingName(
-                    building.Building_ID
-                )}: BSEI ${formatNumber(
-                    building.BSEI
-                )}`
-        )
+        buildingData
     );
 
 
@@ -1586,29 +1856,17 @@ function generateFallbackInsights() {
 
     renderInsight(
         "improvementAreas",
-        [
-            `Review resource consumption patterns in ${
-                formatBuildingName(
-                    lowest.Building_ID
-                )
-            }.`
-        ]
+        {
+            energy: 45,
+            environment: 20,
+            water: 35
+        }
     );
 
 
     renderInsight(
         "buildingRecommendations",
-        buildingData.map(
-            building =>
-                `${formatBuildingName(
-                    building.Building_ID
-                )}: ${
-                    building.Recommendation ||
-                    generateRecommendation(
-                        building
-                    )
-                }`
-        )
+        buildingData
     );
 
 }

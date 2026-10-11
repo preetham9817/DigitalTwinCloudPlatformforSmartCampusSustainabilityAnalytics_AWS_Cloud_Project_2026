@@ -60,9 +60,11 @@ ENVIRONMENT_WEIGHT = 0.20
 
 
 # ============================================================
-# UNICON REFERENCE VALUES
+# BSEI NORMALIZATION CONSTANTS
 # ============================================================
 
+# Retained by the existing BSEI calculation; these constants are not used as
+# standalone dashboard alert or recommendation thresholds.
 ENERGY_REFERENCE = 772.8378
 WATER_REFERENCE = 335464.242
 
@@ -92,6 +94,43 @@ BUILDING_ORDER = [
 PUBLIC_MODEL = None
 MODEL_CONFIG = {}
 PUBLIC_BSEI_DATA = pd.DataFrame()
+
+
+def rounded_metric(value, decimals=2):
+
+    if pd.isna(value) or not np.isfinite(value):
+        return None
+
+    return round(float(value), decimals)
+
+
+def numeric_series(data, column):
+
+    if column not in data.columns:
+        return pd.Series(dtype="float64")
+
+    values = pd.to_numeric(data[column], errors="coerce")
+    return values[np.isfinite(values)]
+
+
+def parse_timestamps(values):
+
+    text_values = values.astype("string").str.strip()
+    iso_dates = text_values.str.match(
+        r"^\d{4}-\d{1,2}-\d{1,2}(?:$|[T\s])",
+        na=False
+    )
+    iso_parsed = pd.to_datetime(
+        values.where(iso_dates),
+        errors="coerce"
+    )
+    day_first_parsed = pd.to_datetime(
+        values.where(~iso_dates),
+        errors="coerce",
+        dayfirst=True
+    )
+
+    return iso_parsed.fillna(day_first_parsed)
 
 
 # ============================================================
@@ -309,9 +348,8 @@ def load_sensor_data():
     # Timestamp
     # --------------------------------------------------------
 
-    combined["Timestamp"] = pd.to_datetime(
-        combined["Timestamp"],
-        errors="coerce"
+    combined["Timestamp"] = parse_timestamps(
+        combined["Timestamp"]
     )
 
     combined = combined.dropna(
@@ -347,6 +385,7 @@ def load_sensor_data():
 
     combined["Building_ID"] = (
         combined["Building_ID"]
+        .where(combined["Building_ID"].notna(), "")
         .astype(str)
         .str.strip()
     )
@@ -462,30 +501,114 @@ def calculate_bsei(
 
 def calculate_bsei_from_row(row):
 
-    try:
+    metric_values = pd.to_numeric(
+        pd.Series([
+            row.get("Energy_Consumption_kWh"),
+            row.get("Water_Consumption_L"),
+            row.get("Temperature_C"),
+            row.get("Humidity_Percent")
+        ]),
+        errors="coerce"
+    )
 
-        return calculate_bsei(
-            row.get(
-                "Energy_Consumption_kWh",
-                0
-            ),
-            row.get(
-                "Water_Consumption_L",
-                0
-            ),
-            row.get(
-                "Temperature_C",
-                TEMPERATURE_REFERENCE
-            ),
-            row.get(
-                "Humidity_Percent",
-                HUMIDITY_REFERENCE
-            )
+    if metric_values.isna().any() or not np.isfinite(metric_values).all():
+        return np.nan
+
+    return calculate_bsei(*metric_values.tolist())
+
+
+def calculate_component_efficiencies(data):
+    required_columns = [
+        "Energy_Consumption_kWh",
+        "Water_Consumption_L",
+        "Temperature_C",
+        "Humidity_Percent"
+    ]
+    if any(column not in data.columns for column in required_columns):
+        return None
+
+    metrics = data[required_columns].apply(
+        pd.to_numeric,
+        errors="coerce"
+    ).replace([np.inf, -np.inf], np.nan).dropna()
+
+    if metrics.empty:
+        return None
+
+    energy_efficiency = 100.0 / (
+        1.0 + metrics["Energy_Consumption_kWh"] / ENERGY_REFERENCE
+    )
+    water_efficiency = 100.0 / (
+        1.0 + metrics["Water_Consumption_L"] / WATER_REFERENCE
+    )
+    temperature_deviation = (
+        (metrics["Temperature_C"] - TEMPERATURE_REFERENCE)
+        / TEMPERATURE_STD
+    )
+    humidity_deviation = (
+        (metrics["Humidity_Percent"] - HUMIDITY_REFERENCE)
+        / HUMIDITY_STD
+    )
+    environmental_efficiency = 100.0 / (
+        1.0 + np.sqrt(
+            temperature_deviation ** 2
+            + humidity_deviation ** 2
         )
+    )
 
-    except Exception:
+    return {
+        "energy": float(energy_efficiency.mean()),
+        "water": float(water_efficiency.mean()),
+        "environment": float(environmental_efficiency.mean())
+    }
 
-        return 0.0
+
+def calculate_weighted_bsei_gaps(data):
+
+    efficiencies = calculate_component_efficiencies(data)
+    if efficiencies is None:
+        return None
+
+    return {
+        "energy": float(
+            (100.0 - efficiencies["energy"]) * ENERGY_WEIGHT
+        ),
+        "water": float(
+            (100.0 - efficiencies["water"]) * WATER_WEIGHT
+        ),
+        "environment": float(
+            (100.0 - efficiencies["environment"])
+            * ENVIRONMENT_WEIGHT
+        )
+    }
+
+
+def select_weighted_bsei_gap(weighted_gaps):
+
+    if not weighted_gaps:
+        return None
+
+    valid_gaps = {}
+    for component, gap in weighted_gaps.items():
+        if component not in {"energy", "water", "environment"}:
+            continue
+        numeric_gap = pd.to_numeric(
+            pd.Series([gap]),
+            errors="coerce"
+        ).iloc[0]
+        if pd.notna(numeric_gap) and np.isfinite(numeric_gap):
+            valid_gaps[component] = float(numeric_gap)
+
+    if not valid_gaps:
+        return None
+
+    component = max(valid_gaps, key=valid_gaps.get)
+    gap = valid_gaps[component]
+
+    if gap <= 0:
+        return None
+
+    return component, gap
 
 
 # ============================================================
@@ -493,117 +616,154 @@ def calculate_bsei_from_row(row):
 # ============================================================
 
 def generate_building_recommendation(
-    building
+    building,
+    weighted_gaps=None,
+    component_efficiencies=None
 ):
 
-    try:
+    def numeric_value(key):
+        value = pd.to_numeric(
+            pd.Series([building.get(key)]),
+            errors="coerce"
+        ).iloc[0]
 
-        bsei = float(
-            building.get("BSEI", 0)
-        )
+        if pd.isna(value) or not np.isfinite(value):
+            return None
 
-        energy = float(
-            building.get(
-                "Energy_Consumption_kWh",
-                0
-            )
-        )
+        return float(value)
 
-        water = float(
-            building.get(
-                "Water_Consumption_L",
-                0
-            )
-        )
+    name = str(
+        building.get("Building_ID") or "This building"
+    ).strip()
+    bsei = numeric_value("BSEI")
+    co2 = numeric_value("CO2_Level_ppm")
 
-        co2 = float(
-            building.get(
-                "CO2_Level_ppm",
-                0
-            )
-        )
-
-        # ----------------------------------------------------
-        # Identify the most relevant issue.
-        # ----------------------------------------------------
-
-        energy_ratio = (
-            energy / ENERGY_REFERENCE
-        )
-
-        water_ratio = (
-            water / WATER_REFERENCE
-        )
-
-        environmental_ratio = (
-            co2 / 800.0
-        )
-
-        # ----------------------------------------------------
-        # Low BSEI
-        # ----------------------------------------------------
-
-        if bsei < 40:
-
-            if water_ratio >= energy_ratio:
-
-                return (
-                    "Prioritize water conservation using "
-                    "low-flow fixtures and monitor high-use areas."
-                )
-
-            return (
-                "Prioritize energy efficiency by optimizing "
-                "high-load equipment and reducing unnecessary usage."
-            )
-
-        # ----------------------------------------------------
-        # Medium BSEI
-        # ----------------------------------------------------
-
-        if bsei < 60:
-
-            if environmental_ratio > 1:
-
-                return (
-                    "Improve ventilation and occupancy management "
-                    "to reduce elevated environmental loads."
-                )
-
-            if water_ratio > energy_ratio:
-
-                return (
-                    "Reduce water consumption through efficient "
-                    "fixtures and improved usage monitoring."
-                )
-
-            return (
-                "Optimize energy usage through equipment scheduling "
-                "and improved load management."
-            )
-
-        # ----------------------------------------------------
-        # Good BSEI
-        # ----------------------------------------------------
-
-        if co2 > 700:
-
-            return (
-                "Maintain resource efficiency while improving "
-                "ventilation to control CO2 levels."
-            )
-
+    if bsei is None:
         return (
-            "Maintain current sustainability performance and "
-            "continue monitoring energy, water and environmental trends."
+            f"Collect complete sensor readings for {name} before "
+            "prioritizing sustainability actions."
         )
 
-    except Exception:
+    energy = numeric_value("Energy_Consumption_kWh")
+    water = numeric_value("Water_Consumption_L")
+    temperature = numeric_value("Temperature_C")
+    humidity = numeric_value("Humidity_Percent")
 
+    if any(
+        value is None
+        for value in (energy, water, temperature, humidity)
+    ):
         return (
-            "Continue monitoring energy, water and environmental "
-            "conditions for further sustainability improvements."
+            f"Collect complete energy, water, temperature and humidity "
+            f"readings for {name} before prioritizing a resource-specific action."
         )
+
+    weighted_gaps = (
+        weighted_gaps
+        if weighted_gaps is not None
+        else calculate_weighted_bsei_gaps(pd.DataFrame([{
+            "Energy_Consumption_kWh": energy,
+            "Water_Consumption_L": water,
+            "Temperature_C": temperature,
+            "Humidity_Percent": humidity
+        }]))
+    )
+    selected_gap = select_weighted_bsei_gap(weighted_gaps)
+
+    if selected_gap is None:
+        return (
+            f"Collect complete energy, water, temperature and humidity "
+            f"readings for {name} before prioritizing a resource-specific action."
+        )
+
+    principal_issue, selected_weighted_gap = selected_gap
+    if component_efficiencies is None:
+        component_efficiencies = calculate_component_efficiencies(
+            pd.DataFrame([{
+                "Energy_Consumption_kWh": energy,
+                "Water_Consumption_L": water,
+                "Temperature_C": temperature,
+                "Humidity_Percent": humidity
+            }])
+        )
+
+    if not component_efficiencies:
+        return (
+            f"Collect complete energy, water, temperature and humidity "
+            f"readings for {name} before prioritizing a resource-specific action."
+        )
+
+    if principal_issue == "water":
+        efficiency_key = "water"
+        efficiency_label = "Water"
+        measurement_detail = (
+            f"Mean water consumption in {name} is {water:.2f} L "
+            "per sensor record."
+        )
+        action = (
+            "Review water-use patterns and investigate conservation "
+            "opportunities."
+        )
+    elif principal_issue == "environment":
+        efficiency_key = "environment"
+        efficiency_label = "environmental"
+        measurement_detail = (
+            f"Mean conditions in {name} are {temperature:.2f} °C and "
+            f"{humidity:.2f}% humidity; "
+            + (
+                f"mean CO2 is {co2:.2f} ppm."
+                if co2 is not None
+                else "CO2 measurement is unavailable."
+            )
+        )
+        action = (
+            "Review temperature, humidity, and CO2 conditions."
+        )
+    else:
+        efficiency_key = "energy"
+        efficiency_label = "Energy"
+        measurement_detail = (
+            f"Mean energy consumption in {name} is {energy:.2f} kWh "
+            "per sensor record."
+        )
+        action = (
+            "Review high-load consumption and operating schedules."
+        )
+
+    efficiency = component_efficiencies[efficiency_key]
+    primary = (
+        f"BSEI is {bsei:.2f}. The primary {efficiency_label} component "
+        f"has {efficiency:.2f}% efficiency and a "
+        f"{selected_weighted_gap:.2f}-point weighted BSEI gap. "
+    )
+
+    secondary_key = max(
+        (
+            key for key in weighted_gaps
+            if key != principal_issue
+        ),
+        key=weighted_gaps.get,
+        default=None
+    )
+    secondary = ""
+    if (
+        secondary_key is not None
+        and weighted_gaps[secondary_key] > 0
+        and component_efficiencies.get(secondary_key) is not None
+        and component_efficiencies[secondary_key] < 100
+    ):
+        secondary_names = {
+            "energy": "energy",
+            "water": "water",
+            "environment": "environmental"
+        }
+        secondary = (
+            f"Also monitor {secondary_names[secondary_key]} efficiency "
+            f"({component_efficiencies[secondary_key]:.2f}%; "
+            f"{weighted_gaps[secondary_key]:.2f}-point weighted gap). "
+        )
+
+    return f"{measurement_detail} {primary}{action} {secondary}".strip()
 
 
 # ============================================================
@@ -614,88 +774,124 @@ def get_building_summary(data):
 
     buildings = []
 
-    if data.empty:
+    if data.empty or "Building_ID" not in data.columns:
 
         return buildings
 
-    for building_name in BUILDING_ORDER:
+    identifiers = data["Building_ID"]
+    normalized_ids = identifiers.astype(str).str.strip().str.casefold()
+    valid_ids = (
+        identifiers.notna()
+        & normalized_ids.ne("")
+        & ~normalized_ids.isin({"nan", "none", "<na>"})
+    )
+    valid_data = data.loc[valid_ids].copy()
 
-        building_data = data[
-            data["Building_ID"].str.lower()
-            ==
-            building_name.lower()
+    if valid_data.empty:
+        return buildings
+
+    valid_data["_Building_Key"] = (
+        valid_data["Building_ID"].astype(str).str.strip().str.casefold()
+    )
+
+    display_names = {}
+    for building_id in valid_data["Building_ID"]:
+        display_name = str(building_id).strip()
+        if not display_name:
+            continue
+        key = display_name.casefold()
+        if key not in display_names:
+            display_names[key] = display_name
+
+    preferred_names = {
+        building_name.casefold(): building_name
+        for building_name in BUILDING_ORDER
+    }
+    ordered_keys = [
+        name.casefold()
+        for name in BUILDING_ORDER
+        if name.casefold() in display_names
+    ]
+    additional_keys = sorted(
+        (
+            key for key in display_names
+            if key not in preferred_names
+        ),
+        key=lambda key: (key, display_names[key])
+    )
+
+    metric_columns = [
+        "Energy_Consumption_kWh",
+        "Water_Consumption_L",
+        "Occupancy",
+        "Temperature_C",
+        "Humidity_Percent",
+        "CO2_Level_ppm",
+        "BSEI"
+    ]
+
+    for column in metric_columns:
+        if column not in valid_data.columns:
+            valid_data[column] = np.nan
+        else:
+            valid_data[column] = pd.to_numeric(
+                valid_data[column],
+                errors="coerce"
+            ).replace([np.inf, -np.inf], np.nan)
+
+    for building_key in ordered_keys + additional_keys:
+        building_data = valid_data[
+            valid_data["_Building_Key"] == building_key
         ]
 
-        if building_data.empty:
-
-            continue
-
         summary = {
-
-            "Building_ID":
-                building_name,
-
-            "Energy_Consumption_kWh":
-                float(
-                    building_data[
-                        "Energy_Consumption_kWh"
-                    ].mean()
-                ),
-
-            "Water_Consumption_L":
-                float(
-                    building_data[
-                        "Water_Consumption_L"
-                    ].mean()
-                ),
-
-            "Occupancy":
-                float(
-                    building_data[
-                        "Occupancy"
-                    ].mean()
-                ),
-
-            "Temperature_C":
-                float(
-                    building_data[
-                        "Temperature_C"
-                    ].mean()
-                ),
-
-            "Humidity_Percent":
-                float(
-                    building_data[
-                        "Humidity_Percent"
-                    ].mean()
-                ),
-
-            "CO2_Level_ppm":
-                float(
-                    building_data[
-                        "CO2_Level_ppm"
-                    ].mean()
-                ),
-
-            "BSEI":
-                float(
-                    building_data[
-                        "BSEI"
-                    ].mean()
-                ),
-
-            "Records":
-                int(
-                    len(building_data)
+            "Building_ID": preferred_names.get(
+                building_key,
+                display_names[building_key]
+            ),
+            **{
+                column: (
+                    float(building_data[column].mean())
+                    if building_data[column].notna().any()
+                    else None
                 )
+                for column in metric_columns
+            },
+            "Records": int(len(building_data))
         }
 
-        summary["Recommendation"] = (
-            generate_building_recommendation(
-                summary
-            )
+        weighted_gaps = calculate_weighted_bsei_gaps(building_data)
+        component_efficiencies = calculate_component_efficiencies(
+            building_data
         )
-
+        selected_gap = select_weighted_bsei_gap(weighted_gaps)
+        summary["Recommendation_Efficiencies"] = (
+            {
+                component: round(efficiency, 2)
+                for component, efficiency in component_efficiencies.items()
+            }
+            if component_efficiencies
+            else None
+        )
+        summary["Recommendation_Gaps"] = (
+            {
+                component: round(gap, 2)
+                for component, gap in weighted_gaps.items()
+            }
+            if weighted_gaps
+            else None
+        )
+        summary["Recommendation_Component"] = (
+            selected_gap[0] if selected_gap else None
+        )
+        summary["Recommendation_Gap"] = (
+            round(selected_gap[1], 2) if selected_gap else None
+        )
+        summary["Recommendation"] = generate_building_recommendation(
+            summary,
+            weighted_gaps,
+            component_efficiencies
+        )
         buildings.append(summary)
 
     return buildings
@@ -717,8 +913,8 @@ def daily_campus_summary(data):
     if "Timestamp" not in data.columns:
         return pd.DataFrame()
 
-    data["Timestamp"] = pd.to_datetime(
-        data["Timestamp"], errors="coerce"
+    data["Timestamp"] = parse_timestamps(
+        data["Timestamp"]
     )
 
     data = data.dropna(subset=["Timestamp"])
@@ -726,21 +922,42 @@ def daily_campus_summary(data):
     if data.empty:
         return pd.DataFrame()
 
-    # Create an explicit Date column for daily grouping
+    # Building summaries are per-record means; campus daily summaries use
+    # daily totals for energy, water, and occupancy, and daily means otherwise.
     data["Date"] = data["Timestamp"].dt.date
 
+    aggregations = {
+        "Energy_Consumption_kWh": "sum",
+        "Water_Consumption_L": "sum",
+        "Occupancy": "sum",
+        "Temperature_C": "mean",
+        "Humidity_Percent": "mean",
+        "CO2_Level_ppm": "mean",
+        "BSEI": "mean"
+    }
+
+    for column in aggregations:
+        if column not in data.columns:
+            data[column] = np.nan
+        else:
+            data[column] = pd.to_numeric(
+                data[column],
+                errors="coerce"
+            )
+
     daily = (
-        data.groupby("Date")
+        data.groupby("Date", sort=True)
         .agg({
-            "Energy_Consumption_kWh": "sum",
-            "Water_Consumption_L": "sum",
-            "Occupancy": "sum",
-            "Temperature_C": "mean",
-            "Humidity_Percent": "mean",
-            "CO2_Level_ppm": "mean",
-            "BSEI": "mean"
+            column: (
+                (lambda values: values.sum(min_count=1))
+                if aggregation == "sum"
+                else "mean"
+            )
+            for column, aggregation in aggregations.items()
         })
         .reset_index()
+        .sort_values("Date", kind="stable")
+        .reset_index(drop=True)
     )
 
     return daily
@@ -822,13 +1039,13 @@ def analytics():
 
             return jsonify({
 
-                "energyConsumption": 0,
-                "waterConsumption": 0,
-                "occupancy": 0,
-                "bsei": 0,
-                "temperature": 0,
-                "humidity": 0,
-                "co2": 0,
+                "energyConsumption": None,
+                "waterConsumption": None,
+                "occupancy": None,
+                "bsei": None,
+                "temperature": None,
+                "humidity": None,
+                "co2": None,
                 "records": int(len(data))
             })
 
@@ -878,25 +1095,25 @@ def analytics():
         return jsonify({
 
             "energyConsumption":
-                round(energy, 2),
+                rounded_metric(energy),
 
             "waterConsumption":
-                round(water, 2),
+                rounded_metric(water),
 
             "occupancy":
-                round(occupancy, 2),
+                rounded_metric(occupancy),
 
             "bsei":
-                round(bsei, 2),
+                rounded_metric(bsei),
 
             "temperature":
-                round(temperature, 2),
+                rounded_metric(temperature),
 
             "humidity":
-                round(humidity, 2),
+                rounded_metric(humidity),
 
             "co2":
-                round(co2, 2),
+                rounded_metric(co2),
 
             "records":
                 int(len(data)),
@@ -986,36 +1203,7 @@ def energy_trend():
 
             return jsonify([])
 
-        daily = (
-            data
-            .groupby(
-                data["Timestamp"].dt.date
-            )
-            .agg({
-
-                "Energy_Consumption_kWh":
-                    "sum",
-
-                "Water_Consumption_L":
-                    "sum",
-
-                "Occupancy":
-                    "sum",
-
-                "CO2_Level_ppm":
-                    "mean",
-
-                "Temperature_C":
-                    "mean",
-
-                "Humidity_Percent":
-                    "mean",
-
-                "BSEI":
-                    "mean"
-            })
-            .reset_index()
-        )
+        daily = daily_campus_summary(data)
 
         result = []
 
@@ -1024,77 +1212,32 @@ def energy_trend():
             result.append({
 
                 "date":
-                    str(row["Timestamp"]),
+                    str(row["Date"]),
 
                 "energy":
-                    round(
-                        float(
-                            row[
-                                "Energy_Consumption_kWh"
-                            ]
-                        ),
-                        2
+                    rounded_metric(
+                        row["Energy_Consumption_kWh"]
                     ),
 
                 "water":
-                    round(
-                        float(
-                            row[
-                                "Water_Consumption_L"
-                            ]
-                        ),
-                        2
+                    rounded_metric(
+                        row["Water_Consumption_L"]
                     ),
 
                 "occupancy":
-                    round(
-                        float(
-                            row[
-                                "Occupancy"
-                            ]
-                        ),
-                        2
-                    ),
+                    rounded_metric(row["Occupancy"]),
 
                 "co2":
-                    round(
-                        float(
-                            row[
-                                "CO2_Level_ppm"
-                            ]
-                        ),
-                        2
-                    ),
+                    rounded_metric(row["CO2_Level_ppm"]),
 
                 "temperature":
-                    round(
-                        float(
-                            row[
-                                "Temperature_C"
-                            ]
-                        ),
-                        2
-                    ),
+                    rounded_metric(row["Temperature_C"]),
 
                 "humidity":
-                    round(
-                        float(
-                            row[
-                                "Humidity_Percent"
-                            ]
-                        ),
-                        2
-                    ),
+                    rounded_metric(row["Humidity_Percent"]),
 
                 "bsei":
-                    round(
-                        float(
-                            row[
-                                "BSEI"
-                            ]
-                        ),
-                        2
-                    )
+                    rounded_metric(row["BSEI"])
             })
 
         return jsonify(result)
@@ -1156,91 +1299,167 @@ def predictive_analysis():
         # ----------------------------------------------------
 
         attention = []
-
-        campus_energy = float(
-            data[
-                "Energy_Consumption_kWh"
-            ].mean()
+        valid_bsei = [
+            building["BSEI"]
+            for building in buildings
+            if building.get("BSEI") is not None
+            and np.isfinite(building["BSEI"])
+        ]
+        campus_mean_bsei = (
+            float(np.mean(valid_bsei))
+            if valid_bsei
+            else None
         )
+        components = ("energy", "water", "environment")
+        campus_efficiency_values = {
+            component: [
+                building["Recommendation_Efficiencies"][component]
+                for building in buildings
+                if building.get("Recommendation_Efficiencies")
+                and building["Recommendation_Efficiencies"].get(component)
+                is not None
+            ]
+            for component in components
+        }
+        campus_efficiency_means = {
+            component: (
+                float(np.mean(values))
+                if values
+                else None
+            )
+            for component, values in campus_efficiency_values.items()
+        }
+        component_labels = {
+            "energy": ("Energy", "⚡", "Review high-load consumption and operating schedules."),
+            "water": ("Water", "💧", "Review water-use patterns and investigate conservation opportunities."),
+            "environment": ("Environment", "🌿", "Review measured temperature and humidity conditions; check CO₂ readings where available.")
+        }
 
-        campus_water = float(
-            data[
-                "Water_Consumption_L"
-            ].mean()
-        )
+        for building in sorted(
+            buildings,
+            key=lambda item: (
+                item.get("BSEI") is None,
+                item.get("BSEI") if item.get("BSEI") is not None else float("inf")
+            )
+        ):
+            bsei = building.get("BSEI")
+            efficiencies = building.get("Recommendation_Efficiencies")
+            weighted_gaps = building.get("Recommendation_Gaps")
+            if (
+                bsei is None
+                or efficiencies is None
+                or weighted_gaps is None
+            ):
+                continue
 
-        campus_co2 = float(
-            data[
-                "CO2_Level_ppm"
-            ].mean()
-        )
+            weaker_components = [
+                component for component in components
+                if efficiencies.get(component) is not None
+                and campus_efficiency_means[component] is not None
+                and efficiencies[component] < campus_efficiency_means[component]
+            ]
+            below_campus_bsei = (
+                campus_mean_bsei is not None
+                and bsei < campus_mean_bsei
+            )
+            if not below_campus_bsei and not weaker_components:
+                continue
 
-        if campus_energy > ENERGY_REFERENCE:
+            component = max(
+                weaker_components or list(components),
+                key=lambda key: weighted_gaps.get(key, -1)
+            )
+            label, icon, recommendation = component_labels[component]
+            efficiency = efficiencies[component]
+            reasons = []
+            if below_campus_bsei:
+                reasons.append(
+                    f"BSEI {bsei:.2f} is below the campus building mean "
+                    f"of {campus_mean_bsei:.2f}"
+                )
+            if component in weaker_components:
+                reasons.append(
+                    f"{label.lower()} efficiency ({efficiency:.2f}%) is "
+                    f"below the campus building mean of "
+                    f"{campus_efficiency_means[component]:.2f}%"
+                )
+            reasons.append(
+                f"its {label.lower()} component contributes a "
+                f"{weighted_gaps[component]:.2f}-point weighted BSEI gap"
+            )
 
-            attention.append({
+            alert = {
+                "area": f"{label} monitoring priority",
+                "title": (
+                    "Water Efficiency Monitoring Priority"
+                    if component == "water"
+                    else f"{label} Monitoring Priority"
+                ),
+                "status": "Monitor",
+                "severity": "monitor",
+                "icon": icon,
+                "affected": building["Building_ID"],
+                "metric": f"{label} component efficiency",
+                "component": component,
+                "value": rounded_metric(efficiency),
+                "unit": "% efficiency",
+                "bsei": rounded_metric(bsei),
+                "weightedGap": rounded_metric(weighted_gaps[component]),
+                "message": "; ".join(reasons) + ".",
+                "recommendation": recommendation
+            }
+            if component == "water":
+                water_consumption = building.get("Water_Consumption_L")
+                if water_consumption is not None and np.isfinite(water_consumption):
+                    alert["observedConsumption"] = rounded_metric(
+                        water_consumption
+                    )
+                    alert["consumptionUnit"] = "L per sensor record"
+                    alert["recommendation"] = (
+                        "Review water-use patterns and investigate "
+                        "conservation opportunities."
+                    )
+            attention.append(alert)
 
-                "area": "Energy",
-
-                "value":
-                    round(
-                        campus_energy,
-                        2
+            water_efficiency = efficiencies.get("water")
+            water_gap = weighted_gaps.get("water")
+            water_consumption = building.get("Water_Consumption_L")
+            if (
+                component != "water"
+                and "water" in weaker_components
+                and water_efficiency is not None
+                and water_gap is not None
+                and water_gap > 0
+                and water_consumption is not None
+                and np.isfinite(water_consumption)
+            ):
+                attention.append({
+                    "area": "Water monitoring priority",
+                    "title": "Water Efficiency Monitoring Priority",
+                    "status": "Monitor",
+                    "severity": "monitor",
+                    "icon": "💧",
+                    "affected": building["Building_ID"],
+                    "metric": "Water component efficiency",
+                    "component": "water",
+                    "value": rounded_metric(water_efficiency),
+                    "unit": "% efficiency",
+                    "bsei": rounded_metric(bsei),
+                    "weightedGap": rounded_metric(water_gap),
+                    "observedConsumption": rounded_metric(water_consumption),
+                    "consumptionUnit": "L per sensor record",
+                    "message": (
+                        f"Water efficiency ({water_efficiency:.2f}%) is "
+                        f"below the campus building mean of "
+                        f"{campus_efficiency_means['water']:.2f}%; the water "
+                        f"component contributes a {water_gap:.2f}-point "
+                        "weighted BSEI gap."
                     ),
-
-                "message":
-                    "Energy consumption is above the reference level."
-            })
-
-        if campus_water > WATER_REFERENCE:
-
-            attention.append({
-
-                "area": "Water",
-
-                "value":
-                    round(
-                        campus_water,
-                        2
-                    ),
-
-                "message":
-                    "Water consumption is above the reference level."
-            })
-
-        if campus_co2 > 700:
-
-            attention.append({
-
-                "area": "Environment",
-
-                "value":
-                    round(
-                        campus_co2,
-                        2
-                    ),
-
-                "message":
-                    "Elevated CO2 levels require ventilation attention."
-            })
-
-        # Always provide useful information.
-        if not attention:
-
-            attention.append({
-
-                "area": "Monitoring",
-
-                "value":
-                    round(
-                        float(
-                            data["BSEI"].mean()
-                        ),
-                        2
-                    ),
-
-                "message":
-                    "Continue monitoring energy, water and environmental trends."
-            })
+                    "recommendation": (
+                        "Review water-use patterns and investigate "
+                        "conservation opportunities."
+                    )
+                })
 
         # ----------------------------------------------------
         # Historical trends
@@ -1260,32 +1479,13 @@ def predictive_analysis():
                     str(row["Date"]),
 
                 "energy":
-                    round(
-                        float(
-                            row[
-                                "Energy_Consumption_kWh"
-                            ]
-                        ),
-                        2
-                    ),
+                    rounded_metric(row["Energy_Consumption_kWh"]),
 
                 "water":
-                    round(
-                        float(
-                            row[
-                                "Water_Consumption_L"
-                            ]
-                        ),
-                        2
-                    ),
+                    rounded_metric(row["Water_Consumption_L"]),
 
                 "bsei":
-                    round(
-                        float(
-                            row["BSEI"]
-                        ),
-                        2
-                    )
+                    rounded_metric(row["BSEI"])
             })
 
         return jsonify({

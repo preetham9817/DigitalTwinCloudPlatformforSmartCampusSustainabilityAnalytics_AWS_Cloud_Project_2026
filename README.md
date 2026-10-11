@@ -122,11 +122,17 @@ The project uses four simulated IoT sensor datasets representing different campu
 
 - **File Format:** CSV
 - **Number of Datasets:** 4
-- **Records per Dataset:** 100
-- **Total Records:** 400
-- **Number of Features:** 9
+- **Records per Dataset:** 61
+- **Total Records:** 244
+- **Columns per Dataset:** 13
 
 Dataset files are available in the **dataset/** folder.
+
+## Dashboard metric and date semantics
+
+- The building CSV timestamps are stored as `DD-MM-YYYY`. The dashboard parses that format without changing the source files; the checked-in building datasets cover daily readings from 2026-08-01 through 2026-09-30.
+- Building Performance consumption and occupancy values are per-sensor-record means; BSEI is the mean of the existing per-record BSEI scores. The campus KPI and historical-trend energy, water, and occupancy values are daily totals, averaged across dates only for campus KPI cards. Temperature, humidity, CO2, and BSEI are means, not totals.
+- The existing BSEI calculation retains its energy and water normalization constants and 45%/35%/20% component weights. Sustainability monitoring priorities compare each building's calculated BSEI and component efficiencies with campus building means; alert and recommendation text does not expose or compare the normalization constants as external thresholds.
 
 ---
 
