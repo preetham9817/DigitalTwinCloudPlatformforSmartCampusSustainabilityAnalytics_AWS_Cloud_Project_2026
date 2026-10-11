@@ -1,11 +1,12 @@
 # AWS Lambda
 
-This folder contains AWS Lambda functions planned for the Digital Twin Cloud Platform for Smart Campus Sustainability Analytics.
+Contains Lambda code and artifacts for the campus sensor-processing demonstration.
 
-## Planned Functions
+## Verified function
+`DigitalTwinDataProcessor` is a Python 3.10 Lambda function with handler `lambda_function.lambda_handler`. IoT rule `CampusSensorToLambda` routes messages from `campus/sensors/#` to this function. It processes sensor JSON, calculates sustainability metrics, writes processed output to S3, and logs execution details to CloudWatch Logs.
 
-- sensor_processor.py
-- sustainability_score.py
-- anomaly_detector.py
+- Region: `us-east-1`
+- S3 bucket: `digital-twin-campus-2026-preetham`
+- Log group: `/aws/lambda/DigitalTwinDataProcessor`
 
-These AWS Lambda functions will process IoT sensor data, calculate sustainability metrics, detect abnormal resource usage, and support real-time data processing within the Digital Twin platform.
+Treat `sensor_processor.py`, `sustainability_score.py`, and `anomaly_detector.py` as planned names unless those files are present and implemented.

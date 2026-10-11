@@ -1,12 +1,5 @@
 # AWS CloudFormation
 
-This folder contains AWS CloudFormation templates used to deploy the cloud infrastructure.
+This directory is intended for CloudFormation templates related to the project. Review each template's parameters, region, IAM permissions, resource names, and estimated costs before deployment.
 
-## Planned Templates
-
-- iot-core.yaml
-- lambda-stack.yaml
-- storage-stack.yaml
-- security-stack.yaml
-
-These templates automate the deployment of AWS resources required for the Digital Twin Cloud Platform for Smart Campus Sustainability Analytics.
+A directory or proposed template list does not prove that all infrastructure is deployed through CloudFormation. The verified AWS demo uses IoT Core → `DigitalTwinDataProcessor` Lambda → S3, with CloudWatch Logs. Document each template's actual resources and deployment status as verified.

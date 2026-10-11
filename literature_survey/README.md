@@ -1,11 +1,3 @@
 # Literature Survey
 
-This directory contains the literature survey documents prepared for the Digital Twin Cloud Platform for Smart Campus Sustainability Analytics project.
-
-## Contents
-
-- Survey Table
-- Individual Research Gap Analysis
-- Novelty Summary
-
-These documents summarize existing research, identify research gaps, and highlight the novelty of the proposed solution.
+Contains literature-survey materials such as a survey table, individual research-gap analysis, and novelty summary, where present. Check the current filenames for the authoritative list. Base research claims on cited papers and distinguish proposed contributions from implemented and tested features.

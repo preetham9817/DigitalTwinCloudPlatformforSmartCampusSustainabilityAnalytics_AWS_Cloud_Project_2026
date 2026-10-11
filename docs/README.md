@@ -1,10 +1,5 @@
 # Project Documentation
 
-This directory contains supporting documentation for the **Digital Twin Cloud Platform for Smart Campus Sustainability Analytics** project.
+Contains supporting reports and planning documents, potentially including the Phase-I review report and work distribution. Check the current directory contents for the authoritative file list.
 
-## Contents
-
-- Work Distribution
-- Review-1 Report
-
-These documents include project planning, work distribution, technical documentation, implementation planning, and reports prepared for academic evaluation.
+Keep descriptions aligned with the implementation: the local Flask dashboard reads CSV datasets; the separately tested AWS pipeline is IoT Core → Lambda → S3/CloudWatch. Distinguish proposed architecture from deployed functionality.

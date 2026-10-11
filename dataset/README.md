@@ -1,70 +1,24 @@
 # Dataset Repository
 
-This folder contains the simulated IoT sensor datasets used in the **Digital Twin Cloud Platform for Smart Campus Sustainability Analytics** project. These datasets represent different campus buildings and are used for Digital Twin visualization, sustainability monitoring, comparative analysis, and predictive analytics.
+Contains simulated IoT time-series datasets for the four configured buildings: Academic, Hostel, Main, and Placement.
 
-## Repository Contents
+| File | Description |
+|---|---|
+| `academic_building_sensor_data.csv` | Academic-building readings |
+| `hostel_building_sensor_data.csv` | Hostel/residential readings |
+| `main_building_sensor_data.csv` | Main-building readings |
+| `placement_building_sensor_data.csv` | Placement/training-building readings |
+| `combined_sensor_data.csv` | Combined records, when generated/present |
+| `dataset_description.md` | Dataset field documentation, when present |
 
-| File Name | Description |
-|-----------|-------------|
-| `academic_building_sensor_data.csv` | Simulated IoT sensor readings for academic buildings, including classrooms, laboratories, libraries, and administrative offices. |
-| `hostel_building_sensor_data.csv` | Simulated IoT sensor readings for hostel buildings representing residential resource consumption and occupancy patterns. |
-| `main_building_sensor_data.csv` | Simulated IoT sensor readings for the campus main building, including administrative offices and common service areas. |
-| `placement_building_sensor_data.csv` | Simulated IoT sensor readings for the placement and training building representing placement drives, workshops, and student activities. |
-| `dataset_description.md` | Documentation describing the datasets, attributes, purpose, and applications. |
+The current generated building CSVs cover 2026-08-01 through 2026-09-30: 61 daily records per building, 244 records total. Regenerate/check files before relying on counts. These are simulated data, not measurements from physical campus sensors.
 
----
+## Common fields
+Timestamp, building identifier, energy consumption, water consumption, temperature, humidity, CO₂ level, occupancy, and sustainability score. Confirm the exact header against the current CSVs.
 
-## Common Dataset Attributes
+## BSEI weights
+- Energy efficiency: 45%
+- Water efficiency: 35%
+- Environmental efficiency: 20%
 
-- Timestamp
-- Building ID
-- Energy Consumption (kWh)
-- Water Consumption (L)
-- Temperature (°C)
-- Humidity (%)
-- CO₂ Level (ppm)
-- Occupancy
-- Sustainability Score
-
----
-
-## Dataset Specifications
-
-- **File Format:** CSV
-- **Dataset Type:** Structured IoT Sensor Dataset
-- **Data Category:** Simulated Time-Series Sensor Data
-- **Number of Datasets:** 4
-- **Records per Dataset:** 100
-- **Total Records:** 400
-- **Number of Features:** 9
-
----
-
-## AWS Storage Plan
-
-The datasets are planned to be stored and processed using:
-
-- Amazon S3
-- Amazon RDS (MySQL)
-
----
-
-## Purpose
-
-The datasets support:
-
-- Smart campus resource monitoring
-- Energy consumption analysis
-- Water usage monitoring
-- Environmental condition monitoring
-- Digital Twin visualization
-- Sustainability analytics
-- Predictive analytics
-- Resource optimization
-- Comparative analysis of different campus buildings
-
----
-
-## Project Status
-
-These datasets were developed for the **Phase-I** design and implementation planning of the **Digital Twin Cloud Platform for Smart Campus Sustainability Analytics** project.
+Timestamps use `DD-MM-YYYY`. Building Performance consumption/occupancy values are per-record means; building BSEI is a mean of per-record scores. Campus KPI and historical-trend energy, water, and occupancy use daily totals; campus KPI cards average those daily totals across dates. Temperature, humidity, CO₂, and BSEI are means. Alerts compare BSEI and component efficiencies with campus-building means, not hidden normalization constants as external thresholds.

@@ -1,11 +1,8 @@
 # Architecture
 
-This folder contains the architectural design of the **Digital Twin Cloud Platform for Smart Campus Sustainability Analytics**.
+Contains architecture diagrams for the Digital Twin Cloud Platform for Smart Campus Sustainability Analytics.
 
-## Contents
+- `AWS_Cloud_Architecture.png` — planned AWS service architecture.
+- `Complete_System_Architecture.png` — broader sensor-to-analytics workflow.
 
-- **AWS_Cloud_Architecture.png** – Illustrates the AWS cloud services and infrastructure used for data ingestion, processing, storage, analytics, security, and monitoring.
-
-- **Complete_System_Architecture.png** – Presents the complete system workflow from IoT sensor data collection to Digital Twin visualization, predictive analytics, and sustainability monitoring.
-
-These diagrams represent the proposed architecture for the Phase-I design of the project and serve as the foundation for future implementation.
+The verified cloud demonstration routes AWS IoT Core messages to `DigitalTwinDataProcessor`, then stores processed output in S3 and logs execution in CloudWatch Logs. The local Flask dashboard reads local CSV data; the diagrams do not prove a live cloud-to-dashboard connection.
