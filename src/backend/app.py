@@ -705,48 +705,42 @@ def get_building_summary(data):
 # CAMPUS DAILY SUMMARY
 # ============================================================
 
+
 def daily_campus_summary(data):
 
     if data.empty:
-
         return pd.DataFrame()
 
-    daily = (
-        data
-        .groupby(
-            data["Timestamp"].dt.date
-        )
-        .agg({
+    data = data.copy()
 
-            "Energy_Consumption_kWh":
-                "sum",
+    # Ensure Timestamp is available and converted to datetime
+    if "Timestamp" not in data.columns:
+        return pd.DataFrame()
 
-            "Water_Consumption_L":
-                "sum",
-
-            "Occupancy":
-                "sum",
-
-            "Temperature_C":
-                "mean",
-
-            "Humidity_Percent":
-                "mean",
-
-            "CO2_Level_ppm":
-                "mean",
-
-            "BSEI":
-                "mean"
-        })
-        .reset_index()
+    data["Timestamp"] = pd.to_datetime(
+        data["Timestamp"], errors="coerce"
     )
 
-    daily.rename(
-        columns={
-            "Timestamp": "Date"
-        },
-        inplace=True
+    data = data.dropna(subset=["Timestamp"])
+
+    if data.empty:
+        return pd.DataFrame()
+
+    # Create an explicit Date column for daily grouping
+    data["Date"] = data["Timestamp"].dt.date
+
+    daily = (
+        data.groupby("Date")
+        .agg({
+            "Energy_Consumption_kWh": "sum",
+            "Water_Consumption_L": "sum",
+            "Occupancy": "sum",
+            "Temperature_C": "mean",
+            "Humidity_Percent": "mean",
+            "CO2_Level_ppm": "mean",
+            "BSEI": "mean"
+        })
+        .reset_index()
     )
 
     return daily
@@ -1263,7 +1257,7 @@ def predictive_analysis():
             historical.append({
 
                 "date":
-                    str(row["Timestamp"]),
+                    str(row["Date"]),
 
                 "energy":
                     round(
