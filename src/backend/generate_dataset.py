@@ -654,15 +654,15 @@ def calculate_bsei(
 
     bsei = 100 * (
 
-        energy_efficiency ** 0.40
+        energy_efficiency ** 0.45
 
         *
 
-        water_efficiency ** 0.30
+        water_efficiency ** 0.35
 
         *
 
-        environmental_efficiency ** 0.30
+        environmental_efficiency ** 0.20
     )
 
     return round(
@@ -1202,6 +1202,24 @@ combined_df["BSEI"] = combined_df.apply(
 
 
 # ============================================================
+# REMOVE OBSOLETE BUILDING DATASETS
+# ============================================================
+
+configured_building_files = {
+    f"{building_name.lower()}_building_sensor_data.csv"
+    for building_name in BUILDINGS.keys()
+}
+
+for filename in os.listdir(DATASET_DIR):
+    if (
+        filename.endswith("_building_sensor_data.csv")
+        and filename not in configured_building_files
+    ):
+        obsolete_file = os.path.join(DATASET_DIR, filename)
+        os.remove(obsolete_file)
+        print(f"Removed obsolete building dataset: {filename}")
+
+# ============================================================
 # SAVE INDIVIDUAL BUILDING DATASETS
 # ============================================================
 
@@ -1615,22 +1633,22 @@ print(
 )
 
 print(
-    "Energy efficiency: 40%"
+    "Energy efficiency: 45%"
 )
 
 print(
-    "Water efficiency: 30%"
+    "Water efficiency: 35%"
 )
 
 print(
-    "Environmental efficiency: 30%"
+    "Environmental efficiency: 20%"
 )
 
 print(
     "BSEI = 100 × "
-    "(Energy Efficiency^0.40) × "
-    "(Water Efficiency^0.30) × "
-    "(Environmental Efficiency^0.30)"
+    "(Energy Efficiency^0.45) × "
+    "(Water Efficiency^0.35) × "
+    "(Environmental Efficiency^0.20)"
 )
 
 
