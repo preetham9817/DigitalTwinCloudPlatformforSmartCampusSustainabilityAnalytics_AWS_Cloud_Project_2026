@@ -560,6 +560,463 @@ body {
 
 
 /* =========================================================
+   LIVE AWS SENSOR DATA
+========================================================= */
+
+.aws-live-controls {
+
+    display: flex;
+
+    align-items: center;
+
+    gap: 12px;
+
+}
+
+
+.aws-data-status {
+
+    color: var(--text-secondary);
+
+    font-size: 11px;
+
+    font-weight: 600;
+
+}
+
+
+.aws-data-status::before {
+
+    display: inline-block;
+
+    width: 7px;
+    height: 7px;
+
+    margin-right: 7px;
+
+    border-radius: 50%;
+
+    background: var(--text-muted);
+
+    content: "";
+
+}
+
+
+.aws-data-status.is-loading::before {
+
+    background: #d49a20;
+
+}
+
+
+.aws-data-status.is-connected::before {
+
+    background: var(--green);
+
+}
+
+
+.aws-data-status.is-error {
+
+    color: #9b3030;
+
+}
+
+
+.aws-data-status.is-error::before {
+
+    background: #c44242;
+
+}
+
+
+.aws-refresh-button {
+
+    padding: 9px 15px;
+
+    border: 1px solid var(--border);
+
+    border-radius: 10px;
+
+    color: var(--navy-800);
+
+    background: var(--white);
+
+    font: inherit;
+
+    font-size: 12px;
+
+    font-weight: 700;
+
+    cursor: pointer;
+
+    transition: background .2s ease, border-color .2s ease;
+
+}
+
+
+.aws-refresh-button:hover:not(:disabled) {
+
+    border-color: var(--blue-light);
+
+    background: var(--blue-soft);
+
+}
+
+
+.aws-refresh-button:focus-visible {
+
+    outline: 3px solid rgba(31, 111, 229, .25);
+
+    outline-offset: 2px;
+
+}
+
+
+.aws-refresh-button:disabled {
+
+    cursor: wait;
+
+    opacity: .65;
+
+}
+
+
+.aws-data-updated {
+
+    margin: -11px 0 18px;
+
+    color: var(--text-muted);
+
+    font-size: 11px;
+
+}
+
+
+.aws-sensor-grid {
+
+    display: grid;
+
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr));
+
+    gap: 16px;
+
+}
+
+
+.aws-sensor-card {
+
+    min-width: 0;
+
+    padding: 20px;
+
+    border: 1px solid var(--border);
+
+    border-radius: 15px;
+
+    background: #fcfdff;
+
+}
+
+
+.aws-sensor-card-header {
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: space-between;
+
+    gap: 10px;
+
+}
+
+
+.aws-sensor-card-header h3 {
+
+    overflow-wrap: anywhere;
+
+    color: var(--navy-950);
+
+    font-size: 16px;
+
+    font-weight: 750;
+
+}
+
+
+.aws-source-badge {
+
+    flex: 0 0 auto;
+
+    padding: 4px 8px;
+
+    border: 1px solid #ccebd9;
+
+    border-radius: 20px;
+
+    color: #145b3c;
+
+    background: #f1faf5;
+
+    font-size: 10px;
+
+    font-weight: 700;
+
+}
+
+
+.aws-sensor-timestamp {
+
+    overflow-wrap: anywhere;
+
+    margin-top: 4px;
+
+    color: var(--text-muted);
+
+    font-size: 11px;
+
+}
+
+
+.aws-sensor-metrics {
+
+    display: grid;
+
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+
+    gap: 10px;
+
+    margin-top: 16px;
+
+}
+
+
+.aws-sensor-metric {
+
+    min-width: 0;
+
+    padding: 10px;
+
+    border: 1px solid #e8eef6;
+
+    border-radius: 10px;
+
+    background: var(--white);
+
+}
+
+
+.aws-sensor-metric span,
+.aws-sensor-metric strong {
+
+    display: block;
+
+    overflow-wrap: anywhere;
+
+}
+
+
+.aws-sensor-metric span {
+
+    color: var(--text-muted);
+
+    font-size: 10px;
+
+}
+
+
+.aws-sensor-metric strong {
+
+    margin-top: 2px;
+
+    color: var(--navy-800);
+
+    font-size: 13px;
+
+    font-weight: 700;
+
+}
+
+
+.aws-data-message {
+
+    grid-column: 1 / -1;
+
+    padding: 20px;
+
+    border: 1px dashed var(--border);
+
+    border-radius: 13px;
+
+    color: var(--text-secondary);
+
+    background: #fbfcfe;
+
+    font-size: 13px;
+
+    text-align: center;
+
+}
+
+
+.aws-data-message.is-error {
+
+    border-color: #e9bcbc;
+
+    color: #873434;
+
+    background: #fff8f8;
+
+}
+
+
+.aws-trend-meta {
+
+    display: flex;
+
+    flex-wrap: wrap;
+
+    align-items: center;
+
+    justify-content: space-between;
+
+    gap: 5px 14px;
+
+    margin: -10px 0 18px;
+
+}
+
+
+.aws-trend-meta .aws-data-updated {
+
+    margin: 0;
+
+}
+
+
+.aws-trend-controls {
+
+    display: flex;
+
+    flex-wrap: wrap;
+
+    align-items: center;
+
+    gap: 9px;
+
+}
+
+
+.aws-trend-controls label {
+
+    color: var(--text-secondary);
+
+    font-size: 11px;
+
+    font-weight: 600;
+
+}
+
+
+.aws-trend-building-filter {
+
+    min-width: 145px;
+
+    min-height: 38px;
+
+    padding: 0 30px 0 11px;
+
+    border: 1px solid var(--border);
+
+    border-radius: 10px;
+
+    color: var(--navy-800);
+
+    background: var(--white);
+
+    font: inherit;
+
+    font-size: 12px;
+
+}
+
+
+.aws-trend-building-filter:focus-visible {
+
+    outline: 3px solid rgba(31, 111, 229, .25);
+
+    outline-offset: 2px;
+
+}
+
+
+.aws-trend-chart-grid {
+
+    display: grid;
+
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+
+    gap: 18px;
+
+}
+
+
+.aws-trend-chart-card {
+
+    min-width: 0;
+
+}
+
+
+.aws-trend-chart-empty {
+
+    position: absolute;
+
+    inset: 0;
+
+    display: grid;
+
+    place-items: center;
+
+    padding: 18px;
+
+    border: 1px dashed var(--border);
+
+    border-radius: 11px;
+
+    color: var(--text-secondary);
+
+    background: #fbfcfe;
+
+    font-size: 12px;
+
+    text-align: center;
+
+}
+
+
+.aws-trend-chart-empty.is-error {
+
+    border-color: #e9bcbc;
+
+    color: #873434;
+
+    background: #fff8f8;
+
+}
+
+
+.aws-trend-chart-empty[hidden],
+.aws-trend-chart-card[hidden] {
+
+    display: none;
+
+}
+
+
+/* =========================================================
    CHARTS
 ========================================================= */
 
@@ -2145,6 +2602,12 @@ body {
 
     }
 
+    .aws-trend-chart-grid {
+
+        grid-template-columns: 1fr;
+
+    }
+
 
     .ml-layout {
 
@@ -2244,6 +2707,44 @@ body {
             20px;
 
     }
+
+    .aws-live-section .section-heading {
+
+        flex-direction: column;
+
+    }
+
+
+    .aws-live-controls {
+
+        width: 100%;
+
+        justify-content: space-between;
+
+    }
+
+    .aws-trends-section .section-heading {
+
+        flex-direction: column;
+
+    }
+
+
+    .aws-trend-controls {
+
+        width: 100%;
+
+    }
+
+
+    .aws-trend-building-filter {
+
+        flex: 1;
+
+        min-width: 120px;
+
+    }
+
 
     .performance-metrics {
 

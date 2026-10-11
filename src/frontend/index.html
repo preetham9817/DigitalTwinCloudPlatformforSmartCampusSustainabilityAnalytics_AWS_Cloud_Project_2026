@@ -245,6 +245,215 @@
 
 
 <!-- =====================================================
+     LIVE AWS SENSOR DATA
+===================================================== -->
+
+<section class="section aws-live-section">
+
+    <div class="section-heading">
+
+        <div>
+
+            <span class="eyebrow">
+                AWS SENSOR PIPELINE
+            </span>
+
+            <h2>
+                Live AWS Sensor Data
+            </h2>
+
+            <p>
+                Latest processed readings retrieved from Amazon S3.
+            </p>
+
+        </div>
+
+        <div class="aws-live-controls">
+
+            <span id="awsDataStatus"
+                  class="aws-data-status"
+                  role="status"
+                  aria-live="polite">
+                Loading AWS records...
+            </span>
+
+            <button id="awsDataRefresh"
+                    class="aws-refresh-button"
+                    type="button">
+                Refresh
+            </button>
+
+        </div>
+
+    </div>
+
+    <p id="awsDataUpdated"
+       class="aws-data-updated"></p>
+
+    <div id="awsSensorRecords"
+         class="aws-sensor-grid"
+         aria-live="polite">
+        <div class="aws-data-message">Loading processed sensor records...</div>
+    </div>
+
+</section>
+
+
+
+<!-- =====================================================
+     AWS SENSOR TRENDS
+===================================================== -->
+
+<section class="section aws-trends-section">
+
+    <div class="section-heading">
+
+        <div>
+
+            <span class="eyebrow">
+                HISTORICAL AWS READINGS
+            </span>
+
+            <h2>
+                AWS Sensor Trends
+            </h2>
+
+            <p>
+                Trends from processed sensor records stored in Amazon S3.
+            </p>
+
+        </div>
+
+        <div class="aws-trend-controls">
+
+            <label for="awsTrendBuildingFilter">
+                Building
+            </label>
+
+            <select id="awsTrendBuildingFilter"
+                    class="aws-trend-building-filter">
+                <option value="all">All buildings</option>
+                <option value="Academic">Academic</option>
+                <option value="Hostel">Hostel</option>
+                <option value="Main">Main</option>
+                <option value="Placement">Placement</option>
+            </select>
+
+            <button id="awsTrendRefresh"
+                    class="aws-refresh-button"
+                    type="button">
+                Refresh Trends
+            </button>
+
+        </div>
+
+    </div>
+
+    <div class="aws-trend-meta">
+        <span id="awsTrendStatus"
+              class="aws-data-status is-loading"
+              role="status"
+              aria-live="polite">
+            Loading AWS history...
+        </span>
+        <span id="awsTrendUpdated"
+              class="aws-data-updated"></span>
+    </div>
+
+    <div class="aws-trend-chart-grid">
+
+        <article id="awsTrendEnergyCard"
+                 class="chart-card aws-trend-chart-card">
+            <div class="chart-header">
+                <div>
+                    <h3>Energy Consumption</h3>
+                    <p>Processed sensor readings over time</p>
+                </div>
+                <span class="chart-tag">kWh</span>
+            </div>
+            <div class="chart-wrapper">
+                <canvas id="awsTrendEnergy"></canvas>
+                <div id="awsTrendEnergyEmpty"
+                     class="aws-trend-chart-empty"
+                     hidden></div>
+            </div>
+        </article>
+
+        <article id="awsTrendWaterCard"
+                 class="chart-card aws-trend-chart-card">
+            <div class="chart-header">
+                <div>
+                    <h3>Water Consumption</h3>
+                    <p>Processed sensor readings over time</p>
+                </div>
+                <span class="chart-tag">L</span>
+            </div>
+            <div class="chart-wrapper">
+                <canvas id="awsTrendWater"></canvas>
+                <div id="awsTrendWaterEmpty"
+                     class="aws-trend-chart-empty"
+                     hidden></div>
+            </div>
+        </article>
+
+        <article id="awsTrendBseiCard"
+                 class="chart-card aws-trend-chart-card">
+            <div class="chart-header">
+                <div>
+                    <h3>BSEI Sustainability Score</h3>
+                    <p>Score included in processed sensor records</p>
+                </div>
+                <span class="chart-tag">BSEI</span>
+            </div>
+            <div class="chart-wrapper">
+                <canvas id="awsTrendBsei"></canvas>
+                <div id="awsTrendBseiEmpty"
+                     class="aws-trend-chart-empty"
+                     hidden></div>
+            </div>
+        </article>
+
+        <article id="awsTrendTemperatureCard"
+                 class="chart-card aws-trend-chart-card">
+            <div class="chart-header">
+                <div>
+                    <h3>Temperature</h3>
+                    <p>Processed sensor readings over time</p>
+                </div>
+                <span class="chart-tag">°C</span>
+            </div>
+            <div class="chart-wrapper">
+                <canvas id="awsTrendTemperature"></canvas>
+                <div id="awsTrendTemperatureEmpty"
+                     class="aws-trend-chart-empty"
+                     hidden></div>
+            </div>
+        </article>
+
+        <article id="awsTrendCo2Card"
+                 class="chart-card aws-trend-chart-card">
+            <div class="chart-header">
+                <div>
+                    <h3>CO₂ Level</h3>
+                    <p>Processed sensor readings over time</p>
+                </div>
+                <span class="chart-tag">ppm</span>
+            </div>
+            <div class="chart-wrapper">
+                <canvas id="awsTrendCo2"></canvas>
+                <div id="awsTrendCo2Empty"
+                     class="aws-trend-chart-empty"
+                     hidden></div>
+            </div>
+        </article>
+
+    </div>
+
+</section>
+
+
+
+<!-- =====================================================
      RESOURCE ANALYTICS
 ===================================================== -->
 

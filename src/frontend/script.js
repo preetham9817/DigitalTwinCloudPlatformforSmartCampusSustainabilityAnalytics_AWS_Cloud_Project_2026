@@ -13,6 +13,12 @@ let energyChartInstance = null;
 let buildingChartInstance = null;
 
 let selectedBuilding = null;
+let awsDataRefreshTimer = null;
+let awsDataRefreshInProgress = false;
+let awsLastRetrievedAt = null;
+let awsTrendRecords = [];
+let awsTrendCharts = {};
+let awsTrendRefreshInProgress = false;
 
 
 /* =========================================================
@@ -176,11 +182,71 @@ document.addEventListener(
 
         setupPredictionForm();
 
+        const awsRefreshButton = getElement("awsDataRefresh");
+        if (awsRefreshButton) {
+            awsRefreshButton.addEventListener(
+                "click",
+                loadAwsSensorData
+            );
+        }
+        const awsTrendRefreshButton = getElement("awsTrendRefresh");
+        if (awsTrendRefreshButton) {
+            awsTrendRefreshButton.addEventListener(
+                "click",
+                loadAwsSensorHistory
+            );
+        }
+        const awsTrendBuildingFilter = getElement("awsTrendBuildingFilter");
+        if (awsTrendBuildingFilter) {
+            awsTrendBuildingFilter.addEventListener(
+                "change",
+                renderAwsSensorTrends
+            );
+        }
+        startAwsDataAutoRefresh();
+        window.addEventListener("pagehide", stopAwsDataAutoRefresh);
+        window.addEventListener("pageshow", event => {
+            if (event.persisted) {
+                startAwsDataAutoRefresh();
+                loadAwsSensorData();
+            }
+        });
+
     }
 );
 
 
+function startAwsDataAutoRefresh() {
+
+    if (awsDataRefreshTimer !== null) {
+        return;
+    }
+
+    awsDataRefreshTimer = window.setInterval(() => {
+        if (!document.hidden) {
+            loadAwsSensorData();
+        }
+    }, 30000);
+
+}
+
+
+function stopAwsDataAutoRefresh() {
+
+    if (awsDataRefreshTimer === null) {
+        return;
+    }
+
+    window.clearInterval(awsDataRefreshTimer);
+    awsDataRefreshTimer = null;
+
+}
+
+
 async function initializeDashboard() {
+
+    loadAwsSensorData();
+    loadAwsSensorHistory();
 
     try {
 
@@ -239,6 +305,576 @@ async function initializeDashboard() {
 
         generateFallbackInsights();
 
+    }
+
+}
+
+
+/* =========================================================
+   LIVE AWS SENSOR DATA
+========================================================= */
+
+async function loadAwsSensorData() {
+
+    const refreshButton = getElement("awsDataRefresh");
+    const status = getElement("awsDataStatus");
+    const recordsElement = getElement("awsSensorRecords");
+    const updatedElement = getElement("awsDataUpdated");
+
+    if (!status || !recordsElement) {
+        return;
+    }
+
+    if (awsDataRefreshInProgress) {
+        return;
+    }
+
+    awsDataRefreshInProgress = true;
+
+    if (refreshButton) {
+        refreshButton.disabled = true;
+        refreshButton.textContent = "Refreshing...";
+    }
+    status.textContent = "Loading AWS records...";
+    status.className = "aws-data-status is-loading";
+
+    try {
+        const data = await fetchJSON("/api/aws-data");
+        if (!data || !Array.isArray(data.records)) {
+            throw new Error("AWS sensor data response has an invalid format.");
+        }
+
+        const latestByBuilding = new Map();
+        for (const record of data.records) {
+            if (!record || typeof record !== "object" || Array.isArray(record)) {
+                continue;
+            }
+
+            const building = String(
+                record.Building_ID || record.building_id || ""
+            ).trim();
+            const key = (building || "unknown").toLocaleLowerCase();
+            if (!latestByBuilding.has(key)) {
+                latestByBuilding.set(key, {
+                    ...record,
+                    Building_ID: building || "Unknown Building"
+                });
+            }
+        }
+
+        const latestRecords = Array.from(latestByBuilding.values());
+        if (!latestRecords.length) {
+            recordsElement.innerHTML = `
+                <div class="aws-data-message">
+                    No processed AWS sensor records are available in S3 yet.
+                </div>
+            `;
+        } else {
+            recordsElement.innerHTML = latestRecords.map(record => {
+                const score = record.BSEI ?? record.Sustainability_Score ??
+                    record.sustainability_score;
+                const hasBsei = record.BSEI !== undefined &&
+                    record.BSEI !== null;
+                const timestamp = record.timestamp || record.Timestamp ||
+                    record.timestamp_utc || record.s3LastModified;
+                const metricRows = [
+                    ["Energy", record.Energy_Consumption_kWh, "kWh"],
+                    ["Water", record.Water_Consumption_L, "L"],
+                    ["Occupancy", record.Occupancy, ""],
+                    ["Temperature", record.Temperature_C, "°C"],
+                    ["Humidity", record.Humidity_Percent, "%"],
+                    ["CO₂", record.CO2_Level_ppm, "ppm"],
+                    [
+                        score === undefined || score === null
+                            ? null
+                            : (hasBsei
+                                ? "BSEI"
+                                : "Sustainability Score"),
+                        score,
+                        score === undefined || score === null ? "" : "/100"
+                    ]
+                ].filter(([label]) => label);
+
+                const metrics = metricRows.map(([label, value, unit]) => `
+                    <div class="aws-sensor-metric">
+                        <span>${escapeHTML(label)}</span>
+                        <strong>${escapeHTML(
+                            value === null || value === undefined ||
+                            value === "" || !Number.isFinite(Number(value))
+                                ? "--"
+                                : `${formatNumber(value)} ${unit}`.trim()
+                        )}</strong>
+                    </div>
+                `).join("");
+
+                return `
+                    <article class="aws-sensor-card">
+                        <div class="aws-sensor-card-header">
+                            <h3>${escapeHTML(record.Building_ID)}</h3>
+                            <span class="aws-source-badge">S3 processed</span>
+                        </div>
+                        <p class="aws-sensor-timestamp">
+                            ${escapeHTML(timestamp || "Timestamp unavailable")}
+                        </p>
+                        <div class="aws-sensor-metrics">${metrics}</div>
+                    </article>
+                `;
+            }).join("");
+        }
+
+        const malformedCount = Number(data.malformedRecords) || 0;
+        status.textContent = malformedCount
+            ? `Connected · ${malformedCount} malformed record(s) skipped`
+            : "Connected to S3";
+        status.className = "aws-data-status is-connected";
+        awsLastRetrievedAt = data.retrievedAt || new Date().toISOString();
+        if (updatedElement) {
+            updatedElement.textContent =
+                `Retrieved ${awsLastRetrievedAt} · Showing latest reading per building`;
+        }
+    } catch (error) {
+        console.error("AWS sensor data error:", error);
+        status.textContent = "AWS data unavailable";
+        status.className = "aws-data-status is-error";
+        recordsElement.innerHTML = `
+            <div class="aws-data-message is-error" role="alert">
+                ${escapeHTML(error.message || "Unable to retrieve AWS sensor data.")}
+                Check Flask AWS access and refresh to try again.
+            </div>
+        `;
+        if (updatedElement) {
+            updatedElement.textContent = awsLastRetrievedAt
+                ? `Last successful retrieval: ${awsLastRetrievedAt}`
+                : "No successful retrieval yet.";
+        }
+    } finally {
+        awsDataRefreshInProgress = false;
+        if (refreshButton) {
+            refreshButton.disabled = false;
+            refreshButton.textContent = "Refresh";
+        }
+    }
+
+}
+
+
+/* =========================================================
+   AWS SENSOR TRENDS
+========================================================= */
+
+const awsTrendBuildingNames = [
+    "Academic",
+    "Hostel",
+    "Main",
+    "Placement"
+];
+
+const awsTrendDefinitions = [
+    {
+        key: "energy",
+        label: "Energy Consumption",
+        unit: "kWh",
+        canvas: "awsTrendEnergy",
+        empty: "awsTrendEnergyEmpty",
+        card: "awsTrendEnergyCard",
+        color: "#1f6fe5",
+        fields: ["Energy_Consumption_kWh", "energy_consumption_kWh"],
+        required: true
+    },
+    {
+        key: "water",
+        label: "Water Consumption",
+        unit: "L",
+        canvas: "awsTrendWater",
+        empty: "awsTrendWaterEmpty",
+        card: "awsTrendWaterCard",
+        color: "#20b879",
+        fields: ["Water_Consumption_L", "water_consumption_L"],
+        required: true
+    },
+    {
+        key: "bsei",
+        label: "BSEI Sustainability Score",
+        unit: "BSEI",
+        canvas: "awsTrendBsei",
+        empty: "awsTrendBseiEmpty",
+        card: "awsTrendBseiCard",
+        color: "#7257c5",
+        fields: ["BSEI", "Sustainability_Score", "sustainability_score"],
+        required: true,
+        max: 100
+    },
+    {
+        key: "temperature",
+        label: "Temperature",
+        unit: "°C",
+        canvas: "awsTrendTemperature",
+        empty: "awsTrendTemperatureEmpty",
+        card: "awsTrendTemperatureCard",
+        color: "#e98a35",
+        fields: ["Temperature_C", "temperature_C"],
+        required: false
+    },
+    {
+        key: "co2",
+        label: "CO₂ Level",
+        unit: "ppm",
+        canvas: "awsTrendCo2",
+        empty: "awsTrendCo2Empty",
+        card: "awsTrendCo2Card",
+        color: "#298a88",
+        fields: ["CO2_Level_ppm", "co2_level_ppm"],
+        required: false
+    }
+];
+
+
+function readAwsTrendMetric(record, fields) {
+
+    for (const field of fields) {
+        const value = Number(record[field]);
+        if (
+            record[field] !== null &&
+            record[field] !== undefined &&
+            record[field] !== "" &&
+            Number.isFinite(value)
+        ) {
+            return value;
+        }
+    }
+
+    return null;
+
+}
+
+
+function parseAwsTrendTimestamp(record) {
+
+    const value = record.timestamp || record.Timestamp ||
+        record.timestamp_utc || record.timestampUtc;
+    if (!value) {
+        return null;
+    }
+
+    const timestamp = new Date(value);
+    return Number.isNaN(timestamp.getTime())
+        ? null
+        : timestamp;
+
+}
+
+
+function formatAwsTrendTimestamp(timestamp) {
+
+    return new Intl.DateTimeFormat(undefined, {
+        dateStyle: "medium",
+        timeStyle: "medium"
+    }).format(timestamp);
+
+}
+
+
+async function loadAwsSensorHistory() {
+
+    const status = getElement("awsTrendStatus");
+    const updated = getElement("awsTrendUpdated");
+    const refreshButton = getElement("awsTrendRefresh");
+
+    if (!status || awsTrendRefreshInProgress) {
+        return;
+    }
+
+    awsTrendRefreshInProgress = true;
+    status.textContent = "Loading S3 history...";
+    status.className = "aws-data-status is-loading";
+    if (refreshButton) {
+        refreshButton.disabled = true;
+        refreshButton.textContent = "Loading...";
+    }
+
+    try {
+        const data = await fetchJSON("/api/aws-data/history?limit=500");
+        if (!data || !Array.isArray(data.records)) {
+            throw new Error("AWS history response has an invalid format.");
+        }
+
+        const buildingNames = new Map(
+            awsTrendBuildingNames.map(name => [name.toLocaleLowerCase(), name])
+        );
+        let recordsWithoutTimestamp = 0;
+        let recordsForOtherBuildings = 0;
+
+        awsTrendRecords = data.records.reduce((parsed, record) => {
+            if (
+                !record ||
+                typeof record !== "object" ||
+                Array.isArray(record)
+            ) {
+                return parsed;
+            }
+
+            const rawBuilding = String(
+                record.Building_ID || record.building_id || ""
+            ).trim();
+            const building = buildingNames.get(rawBuilding.toLocaleLowerCase());
+            if (!building) {
+                recordsForOtherBuildings += 1;
+                return parsed;
+            }
+
+            const timestamp = parseAwsTrendTimestamp(record);
+            if (!timestamp) {
+                recordsWithoutTimestamp += 1;
+                return parsed;
+            }
+
+            const values = {};
+            for (const definition of awsTrendDefinitions) {
+                values[definition.key] = readAwsTrendMetric(
+                    record,
+                    definition.fields
+                );
+            }
+
+            parsed.push({
+                building,
+                timestamp: timestamp.toISOString(),
+                timestampMs: timestamp.getTime(),
+                values
+            });
+            return parsed;
+        }, []);
+
+        awsTrendRecords.sort(
+            (left, right) => left.timestampMs - right.timestampMs
+        );
+        renderAwsSensorTrends();
+
+        const malformedCount = Number(data.malformedRecords) || 0;
+        const skippedCount = malformedCount +
+            recordsWithoutTimestamp +
+            recordsForOtherBuildings;
+        status.textContent = awsTrendRecords.length
+            ? `Loaded ${awsTrendRecords.length} timestamped record(s)${
+                skippedCount ? ` · ${skippedCount} skipped` : ""
+            }`
+            : "No timestamped AWS history available";
+        status.className = awsTrendRecords.length
+            ? "aws-data-status is-connected"
+            : "aws-data-status";
+
+        if (updated) {
+            const limitNote = data.hasMore
+                ? ` · Showing the newest ${data.limit} records`
+                : "";
+            updated.textContent = data.retrievedAt
+                ? `Retrieved ${formatAwsTrendTimestamp(
+                    new Date(data.retrievedAt)
+                )}${limitNote}`
+                : limitNote.trim();
+        }
+    } catch (error) {
+        console.error("AWS sensor trends error:", error);
+        status.textContent = "AWS trends unavailable";
+        status.className = "aws-data-status is-error";
+        for (const definition of awsTrendDefinitions) {
+            const canvas = getElement(definition.canvas);
+            const empty = getElement(definition.empty);
+            const card = getElement(definition.card);
+            if (awsTrendCharts[definition.key]) {
+                awsTrendCharts[definition.key].destroy();
+                delete awsTrendCharts[definition.key];
+            }
+            if (card) {
+                card.hidden = !definition.required;
+            }
+            if (canvas) {
+                canvas.hidden = true;
+            }
+            if (empty) {
+                empty.hidden = false;
+                empty.textContent = error.message
+                    ? `${error.message} Refresh to retry.`
+                    : "Unable to load S3 history. Check AWS access and refresh to retry.";
+                empty.classList.add("is-error");
+            }
+        }
+        if (updated) {
+            updated.textContent = "";
+        }
+    } finally {
+        awsTrendRefreshInProgress = false;
+        if (refreshButton) {
+            refreshButton.disabled = false;
+            refreshButton.textContent = "Refresh Trends";
+        }
+    }
+
+}
+
+
+function renderAwsSensorTrends() {
+
+    const filter = getElement("awsTrendBuildingFilter");
+    const selectedBuilding = filter ? filter.value : "all";
+    const visibleRecords = awsTrendRecords.filter(record =>
+        selectedBuilding === "all" ||
+        record.building === selectedBuilding
+    );
+
+    for (const definition of awsTrendDefinitions) {
+        const canvas = getElement(definition.canvas);
+        const empty = getElement(definition.empty);
+        const card = getElement(definition.card);
+        if (!canvas || !empty || !card) {
+            continue;
+        }
+
+        const hasAnyMetric = awsTrendRecords.some(
+            record => record.values[definition.key] !== null
+        );
+        card.hidden = !definition.required && !hasAnyMetric;
+
+        const metricRecords = visibleRecords.filter(
+            record => record.values[definition.key] !== null
+        );
+        if (
+            !metricRecords.length ||
+            typeof Chart === "undefined"
+        ) {
+            if (awsTrendCharts[definition.key]) {
+                awsTrendCharts[definition.key].destroy();
+                delete awsTrendCharts[definition.key];
+            }
+            canvas.hidden = true;
+            empty.hidden = false;
+            empty.classList.remove("is-error");
+            empty.textContent = typeof Chart === "undefined"
+                ? "Chart library is unavailable."
+                : `No ${definition.label.toLowerCase()} readings are available for this selection.`;
+            continue;
+        }
+
+        canvas.hidden = false;
+        empty.hidden = true;
+        empty.classList.remove("is-error");
+        if (awsTrendCharts[definition.key]) {
+            awsTrendCharts[definition.key].destroy();
+        }
+
+        const timestamps = Array.from(new Set(
+            metricRecords.map(record => record.timestamp)
+        )).sort(
+            (left, right) => new Date(left) - new Date(right)
+        );
+        const labels = timestamps.map(timestamp =>
+            formatAwsTrendTimestamp(new Date(timestamp))
+        );
+        const datasets = awsTrendBuildingNames
+            .filter(building =>
+                selectedBuilding === "all" ||
+                selectedBuilding === building
+            )
+            .map((building, index) => {
+                const valuesByTimestamp = new Map(
+                    metricRecords
+                        .filter(record => record.building === building)
+                        .map(record => [
+                            record.timestamp,
+                            record.values[definition.key]
+                        ])
+                );
+                const colors = [
+                    "#1f6fe5",
+                    "#20b879",
+                    "#7257c5",
+                    "#e98a35"
+                ];
+
+                return {
+                    label: building,
+                    data: timestamps.map(timestamp =>
+                        valuesByTimestamp.has(timestamp)
+                            ? valuesByTimestamp.get(timestamp)
+                            : null
+                    ),
+                    borderColor: colors[index],
+                    backgroundColor: colors[index],
+                    borderWidth: 2,
+                    pointRadius: 2,
+                    pointHoverRadius: 4,
+                    tension: 0.2,
+                    spanGaps: false
+                };
+            })
+            .filter(dataset => dataset.data.some(value => value !== null));
+
+        awsTrendCharts[definition.key] = new Chart(canvas, {
+            type: "line",
+            data: { labels, datasets },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: {
+                    mode: "index",
+                    intersect: false
+                },
+                plugins: {
+                    legend: {
+                        labels: {
+                            color: "#526b89",
+                            font: {
+                                family: "Inter",
+                                size: 11
+                            }
+                        }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            title: items => items.length
+                                ? items[0].label
+                                : ""
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        ticks: {
+                            color: "#7890ac",
+                            maxTicksLimit: 8,
+                            maxRotation: 0,
+                            autoSkip: true,
+                            font: {
+                                family: "Inter",
+                                size: 10
+                            }
+                        },
+                        grid: {
+                            color: "#e9eef5"
+                        }
+                    },
+                    y: {
+                        beginAtZero: definition.key !== "temperature",
+                        suggestedMax: definition.max,
+                        title: {
+                            display: true,
+                            text: definition.unit,
+                            color: "#526b89"
+                        },
+                        ticks: {
+                            color: "#7890ac",
+                            font: {
+                                family: "Inter",
+                                size: 10
+                            }
+                        },
+                        grid: {
+                            color: "#e9eef5"
+                        }
+                    }
+                }
+            }
+        });
     }
 
 }
