@@ -1,4 +1,7 @@
+import json
 import unittest
+from datetime import datetime, timezone
+from io import BytesIO
 from unittest.mock import patch
 
 import numpy as np
@@ -575,6 +578,239 @@ class AlertsAndRecommendationsTests(unittest.TestCase):
 
 
 class ApiContractTests(unittest.TestCase):
+
+    def test_aws_data_route_returns_latest_s3_records_and_skips_bad_json(self):
+        older = datetime(2026, 10, 7, 17, 0, tzinfo=timezone.utc)
+        newer = datetime(2026, 10, 7, 17, 19, tzinfo=timezone.utc)
+
+        class FakePaginator:
+            def paginate(self, **kwargs):
+                self.kwargs = kwargs
+                return [{
+                    "Contents": [
+                        {
+                            "Key": "processed-data/older.json",
+                            "LastModified": older
+                        },
+                        {
+                            "Key": "processed-data/newer.json",
+                            "LastModified": newer
+                        },
+                        {
+                            "Key": "processed-data/malformed.json",
+                            "LastModified": newer
+                        },
+                        {
+                            "Key": "processed-data/ignored.txt",
+                            "LastModified": newer
+                        }
+                    ]
+                }]
+
+        class FakeS3:
+            def __init__(self):
+                self.paginator = FakePaginator()
+
+            def get_paginator(self, name):
+                self.asserted_paginator = name
+                return self.paginator
+
+            def get_object(self, Bucket, Key):
+                bodies = {
+                    "processed-data/older.json": b'{"Building_ID":"Main"}',
+                    "processed-data/newer.json": (
+                        b'{"Building_ID":"Hostel","BSEI":51.82}'
+                    ),
+                    "processed-data/malformed.json": b"{not-json"
+                }
+                return {"Body": BytesIO(bodies[Key])}
+
+        s3 = FakeS3()
+        with patch.object(backend.boto3, "client", return_value=s3) as client:
+            response = backend.app.test_client().get("/api/aws-data")
+
+        self.assertEqual(response.status_code, 200)
+        client.assert_called_once_with("s3", region_name="us-east-1")
+        self.assertEqual(s3.paginator.kwargs, {
+            "Bucket": "digital-twin-campus-2026-preetham",
+            "Prefix": "processed-data/"
+        })
+        result = response.get_json()
+        self.assertEqual(result["count"], 2)
+        self.assertEqual(result["malformedRecords"], 1)
+        self.assertEqual(
+            [record["Building_ID"] for record in result["records"]],
+            ["Hostel", "Main"]
+        )
+        self.assertEqual(
+            result["records"][0]["s3Key"],
+            "processed-data/newer.json"
+        )
+        self.assertEqual(result["region"], "us-east-1")
+
+    def test_aws_data_route_returns_empty_state_when_prefix_is_empty(self):
+        class FakePaginator:
+            def paginate(self, **kwargs):
+                return [{"Contents": []}]
+
+        class FakeS3:
+            def get_paginator(self, name):
+                return FakePaginator()
+
+        with patch.object(backend.boto3, "client", return_value=FakeS3()):
+            response = backend.app.test_client().get("/api/aws-data")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.get_json()["records"], [])
+        self.assertEqual(response.get_json()["count"], 0)
+
+    def test_aws_data_route_reports_missing_credentials(self):
+        with patch.object(
+            backend.boto3,
+            "client",
+            side_effect=backend.NoCredentialsError()
+        ):
+            response = backend.app.test_client().get("/api/aws-data")
+
+        self.assertEqual(response.status_code, 503)
+        self.assertIn("AWS credentials", response.get_json()["error"])
+
+    def test_aws_history_route_applies_limit_and_reports_truncation(self):
+        object_times = [
+            datetime(2026, 10, day, tzinfo=timezone.utc)
+            for day in (1, 2, 3)
+        ]
+
+        class FakePaginator:
+            def paginate(self, **kwargs):
+                return [{
+                    "Contents": [
+                        {
+                            "Key": f"processed-data/record-{index}.json",
+                            "LastModified": modified
+                        }
+                        for index, modified in enumerate(object_times)
+                    ]
+                }]
+
+        class FakeS3:
+            def get_paginator(self, name):
+                return FakePaginator()
+
+            def get_object(self, Bucket, Key):
+                index = int(Key.rsplit("-", 1)[1].split(".", 1)[0])
+                body = json.dumps({
+                    "Building_ID": "Academic",
+                    "timestamp": f"2026-10-0{index + 1}T00:00:00+00:00"
+                }).encode()
+                return {"Body": BytesIO(body)}
+
+        with patch.object(backend.boto3, "client", return_value=FakeS3()):
+            response = backend.app.test_client().get(
+                "/api/aws-data/history?limit=2"
+            )
+
+        self.assertEqual(response.status_code, 200)
+        result = response.get_json()
+        self.assertEqual(result["limit"], 2)
+        self.assertTrue(result["hasMore"])
+        self.assertEqual(result["count"], 2)
+        self.assertEqual(
+            [record["timestamp"] for record in result["records"]],
+            [
+                "2026-10-02T00:00:00+00:00",
+                "2026-10-03T00:00:00+00:00"
+            ]
+        )
+
+    def test_aws_history_route_returns_empty_history(self):
+        class FakePaginator:
+            def paginate(self, **kwargs):
+                return [{"Contents": []}]
+
+        class FakeS3:
+            def get_paginator(self, name):
+                return FakePaginator()
+
+        with patch.object(backend.boto3, "client", return_value=FakeS3()):
+            response = backend.app.test_client().get(
+                "/api/aws-data/history"
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.get_json()["records"], [])
+        self.assertEqual(response.get_json()["count"], 0)
+        self.assertFalse(response.get_json()["hasMore"])
+
+    def test_aws_history_route_reports_expired_credentials(self):
+        expired_token = backend.ClientError(
+            {
+                "Error": {
+                    "Code": "ExpiredToken",
+                    "Message": "The provided token has expired."
+                },
+                "ResponseMetadata": {
+                    "RequestId": "test-expired-request"
+                }
+            },
+            "ListObjectsV2"
+        )
+
+        with patch.object(
+            backend.boto3,
+            "client",
+            side_effect=expired_token
+        ):
+            with self.assertLogs(backend.app.logger, level="ERROR") as logs:
+                response = backend.app.test_client().get(
+                    "/api/aws-data/history"
+                )
+
+        result = response.get_json()
+        self.assertEqual(response.status_code, 503)
+        self.assertEqual(result["awsErrorCode"], "ExpiredToken")
+        self.assertEqual(result["requestId"], "test-expired-request")
+        self.assertIn("credentials have expired", result["error"])
+        self.assertIn("ExpiredToken", "\n".join(logs.output))
+
+    def test_aws_history_route_reports_s3_access_denied(self):
+        access_denied = backend.ClientError(
+            {
+                "Error": {
+                    "Code": "AccessDenied",
+                    "Message": "Access Denied"
+                },
+                "ResponseMetadata": {
+                    "RequestId": "test-denied-request"
+                }
+            },
+            "ListObjectsV2"
+        )
+
+        with patch.object(
+            backend.boto3,
+            "client",
+            side_effect=access_denied
+        ):
+            response = backend.app.test_client().get(
+                "/api/aws-data/history"
+            )
+
+        result = response.get_json()
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(result["awsErrorCode"], "AccessDenied")
+        self.assertEqual(result["requestId"], "test-denied-request")
+        self.assertIn("s3:ListBucket", result["error"])
+
+    def test_aws_history_route_rejects_invalid_limits(self):
+        with patch.object(backend.boto3, "client") as client:
+            response = backend.app.test_client().get(
+                "/api/aws-data/history?limit=not-a-number"
+            )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("limit must be an integer", response.get_json()["error"])
+        client.assert_not_called()
 
     def test_dashboard_routes_keep_contracts_with_valid_data(self):
         data = sensor_rows([

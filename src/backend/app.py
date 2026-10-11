@@ -2,13 +2,16 @@ import os
 import json
 import joblib
 import warnings
-from datetime import datetime
+from datetime import datetime, timezone
+from json import JSONDecodeError
 
+import boto3
 import numpy as np
 import pandas as pd
 
 from flask import Flask, jsonify, request
 from flask_cors import CORS
+from botocore.exceptions import BotoCoreError, ClientError, NoCredentialsError
 
 warnings.filterwarnings("ignore")
 
@@ -48,6 +51,29 @@ PUBLIC_DATASET_PATH = os.path.join(
     "public_dataset",
     "public_bsei_dataset.csv"
 )
+
+AWS_DATA_BUCKET = "digital-twin-campus-2026-preetham"
+AWS_DATA_REGION = "us-east-1"
+AWS_DATA_PREFIX = "processed-data/"
+AWS_DATA_MAX_RECORDS = 50
+AWS_HISTORY_MAX_RECORDS = 1000
+AWS_HISTORY_DEFAULT_RECORDS = 500
+AWS_EXPIRED_CREDENTIAL_CODES = {
+    "ExpiredToken",
+    "ExpiredTokenException",
+    "SecurityTokenExpired",
+    "TokenRefreshRequired"
+}
+AWS_INVALID_CREDENTIAL_CODES = {
+    "InvalidClientTokenId",
+    "InvalidToken",
+    "UnrecognizedClientException"
+}
+AWS_ACCESS_DENIED_CODES = {
+    "AccessDenied",
+    "AccessDeniedException",
+    "AllAccessDisabled"
+}
 
 
 # ============================================================
@@ -994,6 +1020,277 @@ def health():
             "environment": 20
         }
     })
+
+
+# ============================================================
+# API: LATEST PROCESSED AWS SENSOR DATA
+# ============================================================
+
+def fetch_processed_aws_records(limit):
+
+    s3 = boto3.client(
+        "s3",
+        region_name=AWS_DATA_REGION
+    )
+    paginator = s3.get_paginator("list_objects_v2")
+    objects = []
+    for page in paginator.paginate(
+        Bucket=AWS_DATA_BUCKET,
+        Prefix=AWS_DATA_PREFIX
+    ):
+        objects.extend(
+            item
+            for item in page.get("Contents", [])
+            if item.get("Key", "").lower().endswith(".json")
+        )
+
+    objects.sort(
+        key=lambda item: (
+            (
+                item["LastModified"].isoformat()
+                if item.get("LastModified")
+                else ""
+            ),
+            item.get("Key", "")
+        ),
+        reverse=True
+    )
+
+    records = []
+    malformed_records = 0
+    for item in objects[:limit]:
+        response = s3.get_object(
+            Bucket=AWS_DATA_BUCKET,
+            Key=item["Key"]
+        )
+        try:
+            record = json.loads(response["Body"].read())
+        except (JSONDecodeError, UnicodeDecodeError, TypeError):
+            malformed_records += 1
+            continue
+
+        if not isinstance(record, dict):
+            malformed_records += 1
+            continue
+
+        record["s3Key"] = item["Key"]
+        record["s3LastModified"] = (
+            item["LastModified"].isoformat()
+            if item.get("LastModified")
+            else None
+        )
+        records.append(record)
+
+    return records, malformed_records, len(objects) > limit
+
+
+def aws_data_error_response(error):
+
+    if isinstance(error, NoCredentialsError):
+        app.logger.error(
+            "AWS sensor data retrieval failed: no AWS credentials were found."
+        )
+        return jsonify({
+            "error": (
+                "AWS credentials are unavailable. Configure the standard "
+                "AWS credential chain to access live sensor data."
+            )
+        }), 503
+
+    if isinstance(error, ClientError):
+        aws_error = error.response.get("Error", {})
+        error_code = aws_error.get("Code", "Unknown")
+        error_message = aws_error.get(
+            "Message",
+            "AWS returned an error without a message."
+        )
+        request_id = error.response.get(
+            "ResponseMetadata",
+            {}
+        ).get("RequestId")
+
+        app.logger.error(
+            "AWS sensor data retrieval failed "
+            "(code=%s, request_id=%s): %s",
+            error_code,
+            request_id,
+            error_message
+        )
+
+        if error_code in AWS_EXPIRED_CREDENTIAL_CODES:
+            return jsonify({
+                "error": (
+                    "AWS temporary credentials have expired. Refresh the credentials "
+                    "for the active AWS profile and restart Flask."
+                ),
+                "awsErrorCode": error_code,
+                "requestId": request_id
+            }), 503
+
+        if error_code in AWS_INVALID_CREDENTIAL_CODES:
+            return jsonify({
+                "error": (
+                    "AWS rejected the configured credentials. Verify the "
+                    "active AWS profile, refresh its credentials, and restart "
+                    "Flask."
+                ),
+                "awsErrorCode": error_code,
+                "requestId": request_id
+            }), 503
+
+        if error_code == "RequestExpired":
+            return jsonify({
+                "error": (
+                    "AWS rejected the request as expired. Verify the system "
+                    "clock and refresh the active AWS credentials."
+                ),
+                "awsErrorCode": error_code,
+                "requestId": request_id
+            }), 503
+
+        if error_code in AWS_ACCESS_DENIED_CODES:
+            return jsonify({
+                "error": (
+                    "AWS denied access to the processed sensor data. Check "
+                    "s3:ListBucket and s3:GetObject permissions for the "
+                    "configured bucket and prefix."
+                ),
+                "awsErrorCode": error_code,
+                "requestId": request_id
+            }), 403
+
+        return jsonify({
+            "error": (
+                f"AWS S3 request failed ({error_code}): {error_message}"
+            ),
+            "awsErrorCode": error_code,
+            "requestId": request_id
+        }), 502
+
+    app.logger.error(
+        "AWS sensor data retrieval failed (%s): %s",
+        type(error).__name__,
+        error
+    )
+    return jsonify({
+        "error": (
+            f"Unable to retrieve live sensor data from S3: {error}"
+        ),
+        "awsErrorType": type(error).__name__
+    }), 502
+
+
+def aws_record_timestamp(record):
+
+    for field in (
+        "timestamp",
+        "Timestamp",
+        "timestamp_utc",
+        "timestampUtc"
+    ):
+        value = record.get(field)
+        if not isinstance(value, str) or not value.strip():
+            continue
+
+        parsed = pd.to_datetime(
+            value,
+            errors="coerce",
+            utc=True
+        )
+        if not pd.isna(parsed):
+            return parsed.to_pydatetime()
+
+    return None
+
+
+def aws_record_sort_key(record):
+
+    timestamp = aws_record_timestamp(record)
+    return (
+        timestamp is None,
+        timestamp or datetime.max.replace(tzinfo=timezone.utc)
+    )
+
+
+def aws_records_response(records, malformed_records, has_more, limit):
+
+    return jsonify({
+        "records": records,
+        "count": len(records),
+        "malformedRecords": malformed_records,
+        "hasMore": has_more,
+        "limit": limit,
+        "bucket": AWS_DATA_BUCKET,
+        "region": AWS_DATA_REGION,
+        "prefix": AWS_DATA_PREFIX,
+        "retrievedAt": datetime.now(timezone.utc).isoformat()
+    })
+
+
+@app.route(
+    "/api/aws-data",
+    methods=["GET"]
+)
+def aws_data():
+
+    try:
+        records, malformed_records, has_more = fetch_processed_aws_records(
+            AWS_DATA_MAX_RECORDS
+        )
+        return aws_records_response(
+            records,
+            malformed_records,
+            has_more,
+            AWS_DATA_MAX_RECORDS
+        )
+
+    except (NoCredentialsError, ClientError, BotoCoreError) as error:
+        return aws_data_error_response(error)
+
+
+@app.route(
+    "/api/aws-data/history",
+    methods=["GET"]
+)
+def aws_data_history():
+
+    limit_value = request.args.get("limit")
+    try:
+        limit = (
+            int(limit_value)
+            if limit_value is not None
+            else AWS_HISTORY_DEFAULT_RECORDS
+        )
+    except ValueError:
+        return jsonify({
+            "error": (
+                f"limit must be an integer between 1 and "
+                f"{AWS_HISTORY_MAX_RECORDS}."
+            )
+        }), 400
+
+    if not 1 <= limit <= AWS_HISTORY_MAX_RECORDS:
+        return jsonify({
+            "error": (
+                f"limit must be between 1 and "
+                f"{AWS_HISTORY_MAX_RECORDS}."
+            )
+        }), 400
+
+    try:
+        records, malformed_records, has_more = fetch_processed_aws_records(
+            limit
+        )
+        records.sort(key=aws_record_sort_key)
+        return aws_records_response(
+            records,
+            malformed_records,
+            has_more,
+            limit
+        )
+
+    except (NoCredentialsError, ClientError, BotoCoreError) as error:
+        return aws_data_error_response(error)
 
 
 # ============================================================
